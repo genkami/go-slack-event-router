@@ -9,6 +9,7 @@ import (
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/genkami/go-slack-event-router/appmention"
+	"github.com/genkami/go-slack-event-router/appratelimited"
 	routererrors "github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/reaction"
 	"github.com/genkami/go-slack-event-router/signature"
@@ -52,6 +53,7 @@ type Router struct {
 	skipVerification       bool
 	callbackHandlers       map[string][]Handler
 	urlVerificationHandler urlverification.Handler
+	appRateLimitedHandler  appratelimited.Handler
 	fallbackHandler        Handler
 }
 
@@ -59,6 +61,7 @@ func New(options ...Option) (*Router, error) {
 	r := &Router{
 		callbackHandlers:       make(map[string][]Handler),
 		urlVerificationHandler: urlverification.DefaultHandler,
+		appRateLimitedHandler:  appratelimited.DefaultHandler,
 	}
 	for _, o := range options {
 		o.apply(r)
@@ -119,6 +122,10 @@ func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.
 
 func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
 	r.urlVerificationHandler = h
+}
+
+func (r *Router) SetAppRateLimitedHandler(h appratelimited.Handler) {
+	r.appRateLimitedHandler = h
 }
 
 func (r *Router) SetFallback(h Handler) {
@@ -202,7 +209,16 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 }
 
 func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
-	// TODO: implement
+	ev, ok := e.Data.(*slackevents.EventsAPIAppRateLimited)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err := r.appRateLimitedHandler.HandleAppRateLimited(ev)
+	if err != nil {
+		r.respondWithError(w, err)
+		return
+	}
 	w.Write([]byte("OK"))
 }
 
