@@ -78,4 +78,70 @@ var _ = Describe("AppMention", func() {
 			})
 		})
 	})
+
+	Describe("InChannel", func() {
+		Describe("WrapAdded", func() {
+			Context("When the reaction's channel is the same as the predicate's", func() {
+				It("calls the inner handler", func() {
+					h := reaction.InChannel("XXX").WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Channel: "XXX",
+						},
+					}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the reaction's channel is different from thepredicate's", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.InChannel("XXX").WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Channel: "YYY",
+						},
+					}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("WrapRemoved", func() {
+			Context("When the reaction's channel is the same as the predicate's", func() {
+				It("calls the inner handler", func() {
+					h := reaction.InChannel("XXX").WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Channel: "XXX",
+						},
+					}
+					err := h.HandleReactionRemovedEvent(e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the reaction's channel is different from thepredicate's", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.InChannel("XXX").WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Channel: "YYY",
+						},
+					}
+					err := h.HandleReactionRemovedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+	})
 })

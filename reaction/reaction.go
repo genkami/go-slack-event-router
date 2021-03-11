@@ -55,3 +55,29 @@ func (p *namePredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
 		return h.HandleReactionRemovedEvent(e)
 	})
 }
+
+type inChannelPredicate struct {
+	channel string
+}
+
+func InChannel(channel string) Predicate {
+	return &inChannelPredicate{channel: channel}
+}
+
+func (p *inChannelPredicate) WrapAdded(h AddedHandler) AddedHandler {
+	return AddedHandlerFunc(func(e *slackevents.ReactionAddedEvent) error {
+		if p.channel != e.Item.Channel {
+			return errors.NotInterested
+		}
+		return h.HandleReactionAddedEvent(e)
+	})
+}
+
+func (p *inChannelPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
+	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
+		if p.channel != e.Item.Channel {
+			return errors.NotInterested
+		}
+		return h.HandleReactionRemovedEvent(e)
+	})
+}
