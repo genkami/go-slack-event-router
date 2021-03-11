@@ -1,6 +1,8 @@
 package appmention
 
 import (
+	"regexp"
+
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/genkami/go-slack-event-router/errors"
@@ -31,6 +33,24 @@ func InChannel(channel string) Predicate {
 func (p *inChannelPredicate) Wrap(h Handler) Handler {
 	return HandlerFunc(func(e *slackevents.AppMentionEvent) error {
 		if e.Channel != p.channel {
+			return errors.NotInterested
+		}
+		return h.HandleAppMentionEvent(e)
+	})
+}
+
+type nameRegexpPredicate struct {
+	re *regexp.Regexp
+}
+
+func NameRegexp(re *regexp.Regexp) Predicate {
+	return &nameRegexpPredicate{re: re}
+}
+
+func (p *nameRegexpPredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(e *slackevents.AppMentionEvent) error {
+		idx := p.re.FindStringIndex(e.Text)
+		if len(idx) == 0 {
 			return errors.NotInterested
 		}
 		return h.HandleAppMentionEvent(e)
