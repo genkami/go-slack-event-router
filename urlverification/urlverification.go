@@ -4,6 +4,7 @@ import (
 	"github.com/slack-go/slack/slackevents"
 )
 
+// TODO: use slackevents.EventsAPIURLVerificationEvent
 type Handler interface {
 	HandleURLVerification(*slackevents.ChallengeResponse) (string, error)
 }
