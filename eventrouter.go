@@ -70,6 +70,9 @@ func New(options ...Option) (*Router, error) {
 	if r.signingToken == "" && !r.skipVerification {
 		return nil, errors.New("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
 	}
+	if r.signingToken != "" && r.skipVerification {
+		return nil, errors.New("both WithSigningToken and InsecureSkipVerification are given")
+	}
 	return r, nil
 }
 
