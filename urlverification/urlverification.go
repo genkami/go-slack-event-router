@@ -4,17 +4,18 @@ import (
 	"github.com/slack-go/slack/slackevents"
 )
 
-// TODO: use slackevents.EventsAPIURLVerificationEvent
 type Handler interface {
-	HandleURLVerification(*slackevents.ChallengeResponse) (string, error)
+	HandleURLVerification(*slackevents.EventsAPIURLVerificationEvent) (*slackevents.ChallengeResponse, error)
 }
 
-type HandlerFunc func(*slackevents.ChallengeResponse) (string, error)
+type HandlerFunc func(*slackevents.EventsAPIURLVerificationEvent) (*slackevents.ChallengeResponse, error)
 
-func (f HandlerFunc) HandleURLVerification(challenge *slackevents.ChallengeResponse) (string, error) {
-	return f(challenge)
+func (f HandlerFunc) HandleURLVerification(e *slackevents.EventsAPIURLVerificationEvent) (*slackevents.ChallengeResponse, error) {
+	return f(e)
 }
 
-var DefaultHandler Handler = HandlerFunc(func(challenge *slackevents.ChallengeResponse) (string, error) {
-	return challenge.Challenge, nil
+var DefaultHandler Handler = HandlerFunc(func(e *slackevents.EventsAPIURLVerificationEvent) (*slackevents.ChallengeResponse, error) {
+	return &slackevents.ChallengeResponse{
+		Challenge: e.Challenge,
+	}, nil
 })

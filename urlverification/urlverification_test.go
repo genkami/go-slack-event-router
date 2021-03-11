@@ -11,10 +11,10 @@ import (
 var _ = Describe("URLVerification", func() {
 	Describe("DefaultHandler", func() {
 		It("returns the given challenge", func() {
-			challenge := &slackevents.ChallengeResponse{Challenge: "hello"}
-			resp, err := urlverification.DefaultHandler.HandleURLVerification(challenge)
+			e := &slackevents.EventsAPIURLVerificationEvent{Challenge: "hello"}
+			resp, err := urlverification.DefaultHandler.HandleURLVerification(e)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(resp).To(Equal(challenge.Challenge))
+			Expect(resp).To(Equal(&slackevents.ChallengeResponse{Challenge: "hello"}))
 		})
 	})
 })

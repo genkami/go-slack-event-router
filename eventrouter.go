@@ -98,13 +98,20 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
-	_, ok := e.Data.(*slackevents.EventsAPIURLVerificationEvent)
+	ev, ok := e.Data.(*slackevents.EventsAPIURLVerificationEvent)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	// TODO: implement
-	w.Write([]byte("OK"))
+	resp, err := r.urlVerificationHandler.HandleURLVerification(ev)
+	if err != nil {
+		// TODO: handle HttpError
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	_ = enc.Encode(resp)
 }
 
 func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
