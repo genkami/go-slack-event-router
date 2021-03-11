@@ -2,14 +2,14 @@ package eventrouter
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/genkami/go-slack-event-router/appmention"
-	"github.com/genkami/go-slack-event-router/errors"
+	routererrors "github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/reaction"
 	"github.com/genkami/go-slack-event-router/signature"
 	"github.com/genkami/go-slack-event-router/urlverification"
@@ -62,7 +62,7 @@ func New(options ...Option) (*Router, error) {
 		o.apply(r)
 	}
 	if r.signingToken == "" && !r.skipVerification {
-		return nil, fmt.Errorf("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
+		return nil, errors.New("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
 	}
 	return r, nil
 }
@@ -127,6 +127,7 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	case slackevents.AppRateLimited:
 		router.handleAppRateLimited(w, &eventsAPIEvent)
 		return
+		// TODO: handle unknown types
 	}
 }
 
@@ -138,8 +139,7 @@ func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.Eve
 	}
 	resp, err := r.urlVerificationHandler.HandleURLVerification(ev)
 	if err != nil {
-		// TODO: handle HttpError
-		w.WriteHeader(http.StatusInternalServerError)
+		r.respondWithError(w, err)
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
@@ -157,15 +157,15 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 	case *slackevents.ReactionRemovedEvent:
 		err = r.handleReactionRemovedEvent(inner)
 	default:
-		// TODO: implemtn all event handlers
-		err = errors.NotInterested
+		// TODO: implement all event handlers
+		err = routererrors.NotInterested
 	}
-	if err == errors.NotInterested {
+	if err == routererrors.NotInterested {
+		// No maching case in the above switch statement, or no handler is interested in this event
 		err = r.handleFallback(e)
 	}
 	if err != nil {
-		// TODO: handle errors.HttpError
-		w.WriteHeader(http.StatusInternalServerError)
+		r.respondWithError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -194,4 +194,13 @@ func (r *Router) handleReactionRemovedEvent(e *slackevents.ReactionRemovedEvent)
 func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
 	// TODO: implement
 	return nil
+}
+
+func (r *Router) respondWithError(w http.ResponseWriter, err error) {
+	var httpErr *routererrors.HttpError
+	if errors.As(err, &httpErr) {
+		w.WriteHeader(int(*httpErr))
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
