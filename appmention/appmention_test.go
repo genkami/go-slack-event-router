@@ -49,10 +49,10 @@ var _ = Describe("AppMention", func() {
 		})
 	})
 
-	Describe("NameRegexp", func() {
+	Describe("TextRegexp", func() {
 		Context("When the text matches to the pattern", func() {
 			It("calls the inner handler", func() {
-				h := appmention.NameRegexp(regexp.MustCompile(`\bapple\b`)).Wrap(innerHandler)
+				h := appmention.TextRegexp(regexp.MustCompile(`\bapple\b`)).Wrap(innerHandler)
 				e := &slackevents.AppMentionEvent{
 					Text: "I ate an apple",
 				}
@@ -64,7 +64,7 @@ var _ = Describe("AppMention", func() {
 
 		Context("When the text does not match to the pattern", func() {
 			It("does not call the inner handler", func() {
-				h := appmention.NameRegexp(regexp.MustCompile(`\bapple\b`)).Wrap(innerHandler)
+				h := appmention.TextRegexp(regexp.MustCompile(`\bapple\b`)).Wrap(innerHandler)
 				e := &slackevents.AppMentionEvent{
 					Text: "I ate a banana",
 				}

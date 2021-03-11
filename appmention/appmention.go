@@ -39,15 +39,15 @@ func (p *inChannelPredicate) Wrap(h Handler) Handler {
 	})
 }
 
-type nameRegexpPredicate struct {
+type textRegexpPredicate struct {
 	re *regexp.Regexp
 }
 
-func NameRegexp(re *regexp.Regexp) Predicate {
-	return &nameRegexpPredicate{re: re}
+func TextRegexp(re *regexp.Regexp) Predicate {
+	return &textRegexpPredicate{re: re}
 }
 
-func (p *nameRegexpPredicate) Wrap(h Handler) Handler {
+func (p *textRegexpPredicate) Wrap(h Handler) Handler {
 	return HandlerFunc(func(e *slackevents.AppMentionEvent) error {
 		idx := p.re.FindStringIndex(e.Text)
 		if len(idx) == 0 {
