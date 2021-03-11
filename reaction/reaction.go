@@ -1,6 +1,8 @@
 package reaction
 
 import (
+	"regexp"
+
 	"github.com/genkami/go-slack-event-router/errors"
 	"github.com/slack-go/slack/slackevents"
 )
@@ -77,6 +79,43 @@ func (p *inChannelPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
 	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
 		if p.channel != e.Item.Channel {
 			return errors.NotInterested
+		}
+		return h.HandleReactionRemovedEvent(e)
+	})
+}
+
+type messageTextRegexpPredicate struct {
+	re *regexp.Regexp
+}
+
+func MessageTextRegexp(re *regexp.Regexp) Predicate {
+	return &messageTextRegexpPredicate{re: re}
+}
+
+func (p *messageTextRegexpPredicate) match(item *slackevents.Item) error {
+	if item.Message == nil {
+		return errors.NotInterested
+	}
+	idx := p.re.FindStringIndex(item.Message.Text)
+	if len(idx) == 0 {
+		return errors.NotInterested
+	}
+	return nil
+}
+
+func (p *messageTextRegexpPredicate) WrapAdded(h AddedHandler) AddedHandler {
+	return AddedHandlerFunc(func(e *slackevents.ReactionAddedEvent) error {
+		if err := p.match(&e.Item); err != nil {
+			return err
+		}
+		return h.HandleReactionAddedEvent(e)
+	})
+}
+
+func (p *messageTextRegexpPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
+	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
+		if err := p.match(&e.Item); err != nil {
+			return err
 		}
 		return h.HandleReactionRemovedEvent(e)
 	})

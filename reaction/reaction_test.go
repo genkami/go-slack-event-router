@@ -1,6 +1,8 @@
 package reaction_test
 
 import (
+	"regexp"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack/slackevents"
@@ -136,6 +138,104 @@ var _ = Describe("Reaction", func() {
 						Item: slackevents.Item{
 							Channel: "YYY",
 						},
+					}
+					err := h.HandleReactionRemovedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+	})
+
+	Describe("MessageTextRegexp", func() {
+		Describe("WrapAdded", func() {
+			Context("When the text of the reacted message matches to the pattern", func() {
+				It("calls the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Message: &slackevents.ItemMessage{
+								Text: "I ate an apple",
+							},
+						},
+					}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the text of the reacted message does not match to the pattern", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Message: &slackevents.ItemMessage{
+								Text: "I ate a banana",
+							},
+						},
+					}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("When the message is nil", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+					}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("WrapRemoved", func() {
+			Context("When the text of the reacted message matches to the pattern", func() {
+				It("calls the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Message: &slackevents.ItemMessage{
+								Text: "I ate an apple",
+							},
+						},
+					}
+					err := h.HandleReactionRemovedEvent(e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the text of the reacted message does not match to the pattern", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						Item: slackevents.Item{
+							Message: &slackevents.ItemMessage{
+								Text: "I ate a banana",
+							},
+						},
+					}
+					err := h.HandleReactionRemovedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("When the message is nil", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.MessageTextRegexp(regexp.MustCompile(`apple`)).WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
 					}
 					err := h.HandleReactionRemovedEvent(e)
 					Expect(err).To(Equal(errors.NotInterested))
