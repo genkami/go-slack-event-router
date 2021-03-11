@@ -156,14 +156,12 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
 		router.handleURLVerification(w, &eventsAPIEvent)
-		return
 	case slackevents.CallbackEvent:
 		router.handleCallbackEvent(w, &eventsAPIEvent)
-		return
 	case slackevents.AppRateLimited:
 		router.handleAppRateLimited(w, &eventsAPIEvent)
-		return
-		// TODO: handle unknown types
+	default:
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
