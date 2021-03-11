@@ -217,11 +217,9 @@ func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.Eve
 }
 
 func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
-	var err error
+	var err error = routererrors.NotInterested
 	handlers, ok := r.callbackHandlers[e.InnerEvent.Type]
-	if !ok {
-		err = routererrors.NotInterested
-	} else {
+	if ok {
 		for _, h := range handlers {
 			err = h.HandleEventsAPIEvent(e)
 			if !errors.Is(err, routererrors.NotInterested) {
@@ -234,7 +232,7 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 		err = r.handleFallback(e)
 	}
 
-	if err != nil && err != routererrors.NotInterested {
+	if err != nil && !errors.Is(err, routererrors.NotInterested) {
 		r.respondWithError(w, err)
 		return
 	}
