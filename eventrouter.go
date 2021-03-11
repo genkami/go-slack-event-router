@@ -11,6 +11,7 @@ import (
 	"github.com/genkami/go-slack-event-router/appmention"
 	"github.com/genkami/go-slack-event-router/appratelimited"
 	routererrors "github.com/genkami/go-slack-event-router/errors"
+	"github.com/genkami/go-slack-event-router/message"
 	"github.com/genkami/go-slack-event-router/reaction"
 	"github.com/genkami/go-slack-event-router/signature"
 	"github.com/genkami/go-slack-event-router/urlverification"
@@ -79,6 +80,19 @@ func (r *Router) On(eventType string, h Handler) {
 	}
 	handlers = append(handlers, h)
 	r.callbackHandlers[eventType] = handlers
+}
+
+func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
+	for _, p := range preds {
+		h = p.Wrap(h)
+	}
+	r.On(slackevents.Message, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+		inner, ok := e.InnerEvent.Data.(*slackevents.MessageEvent)
+		if !ok {
+			return routererrors.HttpError(http.StatusBadRequest)
+		}
+		return h.HandleMessageEvent(inner)
+	}))
 }
 
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
