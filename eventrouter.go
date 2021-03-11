@@ -8,6 +8,7 @@ import (
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/genkami/go-slack-event-router/appmention"
+	"github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/reaction"
 	"github.com/genkami/go-slack-event-router/urlverification"
 )
@@ -117,6 +118,9 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 		err = r.handleReactionRemovedEvent(inner)
 	default:
 		// TODO: implemtn all event handlers
+		err = errors.NotInterested
+	}
+	if err == errors.NotInterested {
 		err = r.handleFallback(e)
 	}
 	if err != nil {
