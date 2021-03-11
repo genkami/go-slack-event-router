@@ -11,6 +11,7 @@ import (
 	"github.com/genkami/go-slack-event-router/appmention"
 	"github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/reaction"
+	"github.com/genkami/go-slack-event-router/signature"
 	"github.com/genkami/go-slack-event-router/urlverification"
 )
 
@@ -96,8 +97,11 @@ func (r *Router) SetFallback(h FallbackHandler) {
 }
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// TODO: check signature
-	router.serveHTTP(w, req)
+	if router.skipVerification {
+		router.serveHTTP(w, req)
+	} else {
+		signature.Middleware(router.signingToken, http.HandlerFunc(router.serveHTTP)).ServeHTTP(w, req)
+	}
 }
 
 func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
