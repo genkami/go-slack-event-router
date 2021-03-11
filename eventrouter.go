@@ -48,21 +48,17 @@ func WithSigningToken(token string) Option {
 }
 
 type Router struct {
-	signingToken            string
-	skipVerification        bool
-	appMentionHandlers      []appmention.Handler
-	reactionAddedHandlers   []reaction.AddedHandler
-	reactionRemovedHandlers []reaction.RemovedHandler
-	urlVerificationHandler  urlverification.Handler
-	fallbackHandler         Handler
+	signingToken           string
+	skipVerification       bool
+	callbackHandlers       map[string][]Handler
+	urlVerificationHandler urlverification.Handler
+	fallbackHandler        Handler
 }
 
 func New(options ...Option) (*Router, error) {
 	r := &Router{
-		appMentionHandlers:      make([]appmention.Handler, 0),
-		reactionAddedHandlers:   make([]reaction.AddedHandler, 0),
-		reactionRemovedHandlers: make([]reaction.RemovedHandler, 0),
-		urlVerificationHandler:  urlverification.DefaultHandler,
+		callbackHandlers:       make(map[string][]Handler),
+		urlVerificationHandler: urlverification.DefaultHandler,
 	}
 	for _, o := range options {
 		o.apply(r)
@@ -73,25 +69,52 @@ func New(options ...Option) (*Router, error) {
 	return r, nil
 }
 
+func (r *Router) On(eventType string, h Handler) {
+	handlers, ok := r.callbackHandlers[eventType]
+	if !ok {
+		handlers = make([]Handler, 0)
+	}
+	handlers = append(handlers, h)
+	r.callbackHandlers[eventType] = handlers
+}
+
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
 	for _, p := range preds {
 		h = p.Wrap(h)
 	}
-	r.appMentionHandlers = append(r.appMentionHandlers, h)
+	r.On(slackevents.AppMention, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+		inner, ok := e.InnerEvent.Data.(*slackevents.AppMentionEvent)
+		if !ok {
+			return routererrors.HttpError(http.StatusBadRequest)
+		}
+		return h.HandleAppMentionEvent(inner)
+	}))
 }
 
 func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Predicate) {
 	for _, p := range preds {
 		h = p.WrapAdded(h)
 	}
-	r.reactionAddedHandlers = append(r.reactionAddedHandlers, h)
+	r.On(slackevents.ReactionAdded, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionAddedEvent)
+		if !ok {
+			return routererrors.HttpError(http.StatusBadRequest)
+		}
+		return h.HandleReactionAddedEvent(inner)
+	}))
 }
 
 func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.Predicate) {
 	for _, p := range preds {
 		h = p.WrapRemoved(h)
 	}
-	r.reactionRemovedHandlers = append(r.reactionRemovedHandlers, h)
+	r.On(slackevents.ReactionRemoved, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionRemovedEvent)
+		if !ok {
+			return routererrors.HttpError(http.StatusBadRequest)
+		}
+		return h.HandleReactionRemovedEvent(inner)
+	}))
 }
 
 func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
@@ -155,21 +178,22 @@ func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.Eve
 
 func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	var err error
-	switch inner := e.InnerEvent.Data.(type) {
-	case *slackevents.AppMentionEvent:
-		err = r.handleAppMentionEvent(inner)
-	case *slackevents.ReactionAddedEvent:
-		err = r.handleReactionAddedEvent(inner)
-	case *slackevents.ReactionRemovedEvent:
-		err = r.handleReactionRemovedEvent(inner)
-	default:
-		// TODO: implement all event handlers
+	handlers, ok := r.callbackHandlers[e.InnerEvent.Type]
+	if !ok {
 		err = routererrors.NotInterested
+	} else {
+		for _, h := range handlers {
+			err = h.HandleEventsAPIEvent(e)
+			if err != routererrors.NotInterested {
+				break
+			}
+		}
 	}
+
 	if err == routererrors.NotInterested {
-		// No maching case in the above switch statement, or no handler is interested in this event
 		err = r.handleFallback(e)
 	}
+
 	if err != nil && err != routererrors.NotInterested {
 		r.respondWithError(w, err)
 		return
@@ -182,24 +206,11 @@ func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.Even
 	w.Write([]byte("OK"))
 }
 
-func (r *Router) handleAppMentionEvent(e *slackevents.AppMentionEvent) error {
-	// TODO: implement
-	return nil
-}
-
-func (r *Router) handleReactionAddedEvent(e *slackevents.ReactionAddedEvent) error {
-	// TODO: implement
-	return nil
-}
-
-func (r *Router) handleReactionRemovedEvent(e *slackevents.ReactionRemovedEvent) error {
-	// TODO: implement
-	return nil
-}
-
 func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
-	// TODO: implement
-	return nil
+	if r.fallbackHandler == nil {
+		return routererrors.NotInterested
+	}
+	return r.fallbackHandler.HandleEventsAPIEvent(e)
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {
