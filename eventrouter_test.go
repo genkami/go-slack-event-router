@@ -87,7 +87,7 @@ var _ = Describe("EventRouter", func() {
 			})
 		})
 
-		FContext("when the timestamp is too old", func() {
+		Context("when the timestamp is too old", func() {
 			It("responds with 200", func() {
 				ts := time.Now().Add(-1 * time.Hour)
 				req, err := NewRequest(token, content, &ts)

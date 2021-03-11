@@ -63,6 +63,7 @@ type Router struct {
 	urlVerificationHandler urlverification.Handler
 	appRateLimitedHandler  appratelimited.Handler
 	fallbackHandler        Handler
+	httpHandler            http.Handler
 }
 
 func New(options ...Option) (*Router, error) {
@@ -79,6 +80,15 @@ func New(options ...Option) (*Router, error) {
 	}
 	if r.signingToken != "" && r.skipVerification {
 		return nil, errors.New("both WithSigningToken and InsecureSkipVerification are given")
+	}
+
+	r.httpHandler = http.HandlerFunc(r.serveHTTP)
+	if !r.skipVerification {
+		r.httpHandler = &signature.Middleware{
+			Secret:          r.signingToken,
+			VerboseResponse: r.verboseResponse,
+			Handler:         r.httpHandler,
+		}
 	}
 	return r, nil
 }
@@ -157,11 +167,7 @@ func (r *Router) SetFallback(h Handler) {
 }
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if router.skipVerification {
-		router.serveHTTP(w, req)
-	} else {
-		signature.Middleware(router.signingToken, http.HandlerFunc(router.serveHTTP), router.verboseResponse).ServeHTTP(w, req)
-	}
+	router.httpHandler.ServeHTTP(w, req)
 }
 
 func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
