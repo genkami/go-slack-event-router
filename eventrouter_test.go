@@ -2,8 +2,7 @@ package eventrouter_test
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -50,8 +49,14 @@ var _ = Describe("EventRouter", func() {
 
 	Describe("WithSigningSecret", func() {
 		var (
-			r     *eventrouter.Router
-			token = "THE_TOKEN"
+			r       *eventrouter.Router
+			token   = "THE_TOKEN"
+			content = `
+			{
+				"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+				"challenge": "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P",
+				"type": "url_verification"
+			}`
 		)
 		BeforeEach(func() {
 			var err error
@@ -61,19 +66,36 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is valid", func() {
 			It("responds with 200", func() {
-				req, err := NewRequest(token, `
-				{
-					"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
-					"challenge": "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P",
-					"type": "url_verification"
-				}`, nil)
+				req, err := NewRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
-				fmt.Printf("body: %s\n", body)
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the signature is invalid", func() {
+			It("responds with BadRequest", func() {
+				req, err := NewRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			})
+		})
+
+		FContext("when the timestamp is too old", func() {
+			It("responds with 200", func() {
+				ts := time.Now().Add(-1 * time.Hour)
+				req, err := NewRequest(token, content, &ts)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
 			})
 		})
 	})
