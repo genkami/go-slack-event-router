@@ -76,7 +76,7 @@ var _ = Describe("EventRouter", func() {
 		})
 
 		Context("when the signature is invalid", func() {
-			It("responds with BadRequest", func() {
+			It("responds with Unauthorized", func() {
 				req, err := NewRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
@@ -88,7 +88,7 @@ var _ = Describe("EventRouter", func() {
 		})
 
 		Context("when the timestamp is too old", func() {
-			It("responds with 200", func() {
+			It("responds with Unauthorized", func() {
 				ts := time.Now().Add(-1 * time.Hour)
 				req, err := NewRequest(token, content, &ts)
 				Expect(err).NotTo(HaveOccurred())
@@ -96,6 +96,59 @@ var _ = Describe("EventRouter", func() {
 				r.ServeHTTP(w, req)
 				resp := w.Result()
 				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			})
+		})
+	})
+
+	Describe("InsecureSkipVerification", func() {
+		var (
+			r       *eventrouter.Router
+			token   = "THE_TOKEN"
+			content = `
+			{
+				"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+				"challenge": "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P",
+				"type": "url_verification"
+			}`
+		)
+		BeforeEach(func() {
+			var err error
+			r, err = eventrouter.New(eventrouter.InsecureSkipVerification(), eventrouter.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when the signature is valid", func() {
+			It("responds with 200", func() {
+				req, err := NewRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the signature is invalid", func() {
+			It("responds with 200", func() {
+				req, err := NewRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the timestamp is too old", func() {
+			It("responds with 200", func() {
+				ts := time.Now().Add(-1 * time.Hour)
+				req, err := NewRequest(token, content, &ts)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			})
 		})
 	})
