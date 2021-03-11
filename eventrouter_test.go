@@ -2,20 +2,17 @@ package eventrouter_test
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	eventrouter "github.com/genkami/go-slack-event-router"
+	"github.com/genkami/go-slack-event-router/signature"
 )
 
 var _ = Describe("EventRouter", func() {
@@ -64,11 +61,12 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is valid", func() {
 			It("responds with 200", func() {
-				req, err := NewRequest(token, `{
-				"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
-				"challenge": "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P",
-				"type": "url_verification"
-			}`, nil)
+				req, err := NewRequest(token, `
+				{
+					"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+					"challenge": "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P",
+					"type": "url_verification"
+				}`, nil)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -82,26 +80,18 @@ var _ = Describe("EventRouter", func() {
 })
 
 func NewRequest(signingSecret string, body string, ts *time.Time) (*http.Request, error) {
-	hash := hmac.New(sha256.New, []byte(signingSecret))
 	var now time.Time
 	if ts == nil {
 		now = time.Now()
 	} else {
 		now = *ts
 	}
-	timestamp := strconv.FormatInt(now.Unix(), 10)
-	if _, err := hash.Write([]byte(fmt.Sprintf("v0:%s:", timestamp))); err != nil {
-		return nil, err
-	}
-	if _, err := hash.Write([]byte(body)); err != nil {
-		return nil, err
-	}
-	signature := hash.Sum(nil)
 	req, err := http.NewRequest(http.MethodPost, "http://example.com/path/to/callback", bytes.NewReader([]byte(body)))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-	req.Header.Set("X-Slack-Signature", "v0="+hex.EncodeToString(signature))
+	if err := signature.AddSignature(req.Header, []byte(signingSecret), []byte(body), now); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
