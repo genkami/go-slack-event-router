@@ -160,7 +160,7 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if router.skipVerification {
 		router.serveHTTP(w, req)
 	} else {
-		signature.Middleware(router.signingToken, http.HandlerFunc(router.serveHTTP)).ServeHTTP(w, req)
+		signature.Middleware(router.signingToken, http.HandlerFunc(router.serveHTTP), router.verboseResponse).ServeHTTP(w, req)
 	}
 }
 

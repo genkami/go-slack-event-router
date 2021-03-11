@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,21 +21,34 @@ const (
 	HeaderSignature = "X-Slack-Signature"
 )
 
-func Middleware(signingSecret string, handler http.Handler) http.Handler {
+func Middleware(signingSecret string, handler http.Handler, verboseResponse bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		verifier, err := slack.NewSecretsVerifier(r.Header, signingSecret)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			if errors.Is(err, slack.ErrExpiredTimestamp) {
+				w.WriteHeader(http.StatusUnauthorized)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			if verboseResponse {
+				fmt.Fprintf(w, "failed to initialize verifier: %s", err.Error())
+			}
 			return
 		}
 		tee := io.TeeReader(r.Body, &verifier)
 		body, err := ioutil.ReadAll(tee)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			if verboseResponse {
+				fmt.Fprintf(w, "failed to read response: %s", err.Error())
+			}
 			return
 		}
 		if err := verifier.Ensure(); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+			if verboseResponse {
+				fmt.Fprintf(w, "verification failed: %s", err.Error())
+			}
 			return
 		}
 		r.Body = ioutil.NopCloser(bytes.NewReader(body))
