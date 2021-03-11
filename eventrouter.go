@@ -2,6 +2,7 @@ package eventrouter
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -17,8 +18,31 @@ type FallbackHandler interface {
 	HandleEventsAPIEvent(e *slackevents.EventsAPIEvent) error
 }
 
+type Option interface {
+	apply(*Router)
+}
+
+type optionFunc func(*Router)
+
+func (f optionFunc) apply(r *Router) {
+	f(r)
+}
+
+func InsecureSkipVerification() Option {
+	return optionFunc(func(r *Router) {
+		r.skipVerification = true
+	})
+}
+
+func WithSigningToken(token string) Option {
+	return optionFunc(func(r *Router) {
+		r.signingToken = token
+	})
+}
+
 type Router struct {
 	signingToken            string
+	skipVerification        bool
 	appMentionHandlers      []appmention.Handler
 	reactionAddedHandlers   []reaction.AddedHandler
 	reactionRemovedHandlers []reaction.RemovedHandler
@@ -26,15 +50,20 @@ type Router struct {
 	fallbackHandler         FallbackHandler
 }
 
-func New(signingToken string) *Router {
-	return &Router{
-		signingToken:            signingToken,
+func New(options ...Option) (*Router, error) {
+	r := &Router{
 		appMentionHandlers:      make([]appmention.Handler, 0),
 		reactionAddedHandlers:   make([]reaction.AddedHandler, 0),
 		reactionRemovedHandlers: make([]reaction.RemovedHandler, 0),
 		urlVerificationHandler:  urlverification.DefaultHandler,
-		fallbackHandler:         nil,
 	}
+	for _, o := range options {
+		o.apply(r)
+	}
+	if r.signingToken == "" && !r.skipVerification {
+		return nil, fmt.Errorf("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
+	}
+	return r, nil
 }
 
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
