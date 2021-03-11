@@ -15,8 +15,14 @@ import (
 	"github.com/genkami/go-slack-event-router/urlverification"
 )
 
-type FallbackHandler interface {
-	HandleEventsAPIEvent(e *slackevents.EventsAPIEvent) error
+type Handler interface {
+	HandleEventsAPIEvent(*slackevents.EventsAPIEvent) error
+}
+
+type HandlerFunc func(*slackevents.EventsAPIEvent) error
+
+func (f HandlerFunc) HandleEventsAPIEvent(e *slackevents.EventsAPIEvent) error {
+	return f(e)
 }
 
 type Option interface {
@@ -48,7 +54,7 @@ type Router struct {
 	reactionAddedHandlers   []reaction.AddedHandler
 	reactionRemovedHandlers []reaction.RemovedHandler
 	urlVerificationHandler  urlverification.Handler
-	fallbackHandler         FallbackHandler
+	fallbackHandler         Handler
 }
 
 func New(options ...Option) (*Router, error) {
@@ -92,7 +98,7 @@ func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
 	r.urlVerificationHandler = h
 }
 
-func (r *Router) SetFallback(h FallbackHandler) {
+func (r *Router) SetFallback(h Handler) {
 	r.fallbackHandler = h
 }
 
