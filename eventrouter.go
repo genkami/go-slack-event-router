@@ -2,10 +2,10 @@ package eventrouter
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 
+	"github.com/pkg/errors"
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/genkami/go-slack-event-router/appmention"
@@ -160,13 +160,15 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		router.respondWithError(w, err)
 		return
 	}
 
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		router.respondWithError(
+			w,
+			errors.WithMessage(routererrors.HttpError(http.StatusBadRequest), err.Error()))
 		return
 	}
 
@@ -178,14 +180,17 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	case slackevents.AppRateLimited:
 		router.handleAppRateLimited(w, &eventsAPIEvent)
 	default:
-		w.WriteHeader(http.StatusBadRequest)
+		router.respondWithError(
+			w,
+			errors.WithMessagef(routererrors.HttpError(http.StatusBadRequest),
+				"unknown event type: %s", eventsAPIEvent.Type))
 	}
 }
 
 func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	ev, ok := e.Data.(*slackevents.EventsAPIURLVerificationEvent)
 	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
+		r.respondWithError(w, errors.New("invalid url_verification event"))
 		return
 	}
 	resp, err := r.urlVerificationHandler.HandleURLVerification(ev)
@@ -206,13 +211,13 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 	} else {
 		for _, h := range handlers {
 			err = h.HandleEventsAPIEvent(e)
-			if err != routererrors.NotInterested {
+			if !errors.Is(err, routererrors.NotInterested) {
 				break
 			}
 		}
 	}
 
-	if err == routererrors.NotInterested {
+	if errors.Is(err, routererrors.NotInterested) {
 		err = r.handleFallback(e)
 	}
 
@@ -226,7 +231,7 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	ev, ok := e.Data.(*slackevents.EventsAPIAppRateLimited)
 	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
+		r.respondWithError(w, errors.New("invalid app_rate_limited event"))
 		return
 	}
 	err := r.appRateLimitedHandler.HandleAppRateLimited(ev)
@@ -251,4 +256,5 @@ func (r *Router) respondWithError(w http.ResponseWriter, err error) {
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	w.Write([]byte(err.Error()))
 }
