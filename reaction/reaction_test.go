@@ -9,7 +9,7 @@ import (
 	"github.com/genkami/go-slack-event-router/reaction"
 )
 
-var _ = Describe("AppMention", func() {
+var _ = Describe("Reaction", func() {
 	var (
 		numHandlerCalled  int
 		innerAddedHandler = reaction.AddedHandlerFunc(func(_ *slackevents.ReactionAddedEvent) error {
