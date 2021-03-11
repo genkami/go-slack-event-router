@@ -164,7 +164,7 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 		// No maching case in the above switch statement, or no handler is interested in this event
 		err = r.handleFallback(e)
 	}
-	if err != nil {
+	if err != nil && err != routererrors.NotInterested {
 		r.respondWithError(w, err)
 		return
 	}
