@@ -55,7 +55,7 @@ var _ = Describe("EventRouter", func() {
 		)
 		BeforeEach(func() {
 			var err error
-			r, err = eventrouter.New(eventrouter.WithSigningToken(token))
+			r, err = eventrouter.New(eventrouter.WithSigningToken(token), eventrouter.VerboseResponse())
 			Expect(err).NotTo(HaveOccurred())
 		})
 

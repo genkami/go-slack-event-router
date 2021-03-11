@@ -49,9 +49,16 @@ func WithSigningToken(token string) Option {
 	})
 }
 
+func VerboseResponse() Option {
+	return optionFunc(func(r *Router) {
+		r.verboseResponse = true
+	})
+}
+
 type Router struct {
 	signingToken           string
 	skipVerification       bool
+	verboseResponse        bool
 	callbackHandlers       map[string][]Handler
 	urlVerificationHandler urlverification.Handler
 	appRateLimitedHandler  appratelimited.Handler
@@ -256,5 +263,7 @@ func (r *Router) respondWithError(w http.ResponseWriter, err error) {
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	w.Write([]byte(err.Error()))
+	if r.verboseResponse {
+		w.Write([]byte(err.Error()))
+	}
 }
