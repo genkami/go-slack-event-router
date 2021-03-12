@@ -61,6 +61,40 @@ func (p *blockActionPredicate) Wrap(h Handler) Handler {
 	})
 }
 
+type callbackIDPredicate struct {
+	id string
+}
+
+func CallbackID(id string) Predicate {
+	return &callbackIDPredicate{id: id}
+}
+
+func (p *callbackIDPredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+		if callback.CallbackID != p.id {
+			return routererrors.NotInterested
+		}
+		return h.HandleInteraction(callback)
+	})
+}
+
+type channelPredicate struct {
+	id string
+}
+
+func Channel(id string) Predicate {
+	return &channelPredicate{id: id}
+}
+
+func (p *channelPredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+		if callback.Channel.ID != p.id {
+			return routererrors.NotInterested
+		}
+		return h.HandleInteraction(callback)
+	})
+}
+
 func Build(h Handler, preds ...Predicate) Handler {
 	for _, p := range preds {
 		h = p.Wrap(h)
@@ -138,4 +172,13 @@ func (r *Router) respondWithError(w http.ResponseWriter, err error) {
 	// TODO: verbose output
 	// TODO: move this to utils
 	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func FindBlockAction(callback *slack.InteractionCallback, blockID, actionID string) *slack.BlockAction {
+	for _, ba := range callback.ActionCallback.BlockActions {
+		if ba.BlockID == blockID && ba.ActionID == actionID {
+			return ba
+		}
+	}
+	return nil
 }
