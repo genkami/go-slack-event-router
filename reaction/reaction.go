@@ -127,3 +127,10 @@ func BuildAdded(h AddedHandler, preds ...Predicate) AddedHandler {
 	}
 	return h
 }
+
+func BuildRemoved(h RemovedHandler, preds ...Predicate) RemovedHandler {
+	for _, p := range preds {
+		h = p.WrapRemoved(h)
+	}
+	return h
+}

@@ -137,9 +137,7 @@ func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Pred
 }
 
 func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.Predicate) {
-	for _, p := range preds {
-		h = p.WrapRemoved(h)
-	}
+	h = reaction.BuildRemoved(h, preds...)
 	r.On(slackevents.ReactionRemoved, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionRemovedEvent)
 		if !ok {
