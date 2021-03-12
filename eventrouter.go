@@ -104,9 +104,7 @@ func (r *Router) On(eventType string, h Handler) {
 }
 
 func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
-	for _, p := range preds {
-		h = p.Wrap(h)
-	}
+	h = message.Build(h, preds...)
 	r.On(slackevents.Message, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.MessageEvent)
 		if !ok {

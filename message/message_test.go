@@ -23,6 +23,81 @@ var _ = Describe("Message", func() {
 		numHandlerCalled = 0
 	})
 
+	Describe("Build", func() {
+		Context("when no predicate is given", func() {
+			It("returns the original handler", func() {
+				h := message.Build(innerHandler)
+				e := &slackevents.MessageEvent{Text: "hello world"}
+				err := h.HandleMessageEvent(e)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when a single predicate is given", func() {
+			Context("when the predicate matches to the given message", func() {
+				It("calls the inner handler", func() {
+					h := message.Build(innerHandler, message.TextRegexp(regexp.MustCompile(`hello`)))
+					e := &slackevents.MessageEvent{Text: "hello world"}
+					err := h.HandleMessageEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("when the predicate does not match to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := message.Build(innerHandler, message.TextRegexp(regexp.MustCompile(`BYE`)))
+					e := &slackevents.MessageEvent{Text: "hello world"}
+					err := h.HandleMessageEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Context("when more than one predicates are given", func() {
+			Context("when none of the predicates matches to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := message.Build(innerHandler,
+						message.TextRegexp(regexp.MustCompile(`BYE`)),
+						message.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
+					)
+					e := &slackevents.MessageEvent{Text: "hello world"}
+					err := h.HandleMessageEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when some of the predicates matche to the given message but others don't", func() {
+				It("does not call the inner handler", func() {
+					h := message.Build(innerHandler,
+						message.TextRegexp(regexp.MustCompile(`hello`)),
+						message.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
+					)
+					e := &slackevents.MessageEvent{Text: "hello world"}
+					err := h.HandleMessageEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when all of the predicates matche to the given message", func() {
+				It("calls the inner handler", func() {
+					h := message.Build(innerHandler,
+						message.TextRegexp(regexp.MustCompile(`hello`)),
+						message.TextRegexp(regexp.MustCompile(`world`)),
+					)
+					e := &slackevents.MessageEvent{Text: "hello world"}
+					err := h.HandleMessageEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+		})
+	})
+
 	Describe("TextRegexp", func() {
 		Context("When the text matches to the pattern", func() {
 			It("calls the inner handler", func() {
