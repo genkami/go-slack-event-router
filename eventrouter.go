@@ -115,9 +115,7 @@ func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
 }
 
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
-	for _, p := range preds {
-		h = p.Wrap(h)
-	}
+	h = appmention.Build(h, preds...)
 	r.On(slackevents.AppMention, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.AppMentionEvent)
 		if !ok {

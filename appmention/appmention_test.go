@@ -23,6 +23,81 @@ var _ = Describe("AppMention", func() {
 		numHandlerCalled = 0
 	})
 
+	Describe("Build", func() {
+		Context("when no predicate is given", func() {
+			It("returns the original handler", func() {
+				h := appmention.Build(innerHandler)
+				e := &slackevents.AppMentionEvent{Text: "hello world"}
+				err := h.HandleAppMentionEvent(e)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when a single predicate is given", func() {
+			Context("when the predicate matches to the given message", func() {
+				It("calls the inner handler", func() {
+					h := appmention.Build(innerHandler, appmention.TextRegexp(regexp.MustCompile(`hello`)))
+					e := &slackevents.AppMentionEvent{Text: "hello world"}
+					err := h.HandleAppMentionEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("when the predicate does not match to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := appmention.Build(innerHandler, appmention.TextRegexp(regexp.MustCompile(`BYE`)))
+					e := &slackevents.AppMentionEvent{Text: "hello world"}
+					err := h.HandleAppMentionEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Context("when more than one predicates are given", func() {
+			Context("when none of the predicates matches to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := appmention.Build(innerHandler,
+						appmention.TextRegexp(regexp.MustCompile(`BYE`)),
+						appmention.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
+					)
+					e := &slackevents.AppMentionEvent{Text: "hello world"}
+					err := h.HandleAppMentionEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when some of the predicates matche to the given message but others don't", func() {
+				It("does not call the inner handler", func() {
+					h := appmention.Build(innerHandler,
+						appmention.TextRegexp(regexp.MustCompile(`hello`)),
+						appmention.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
+					)
+					e := &slackevents.AppMentionEvent{Text: "hello world"}
+					err := h.HandleAppMentionEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when all of the predicates matche to the given message", func() {
+				It("calls the inner handler", func() {
+					h := appmention.Build(innerHandler,
+						appmention.TextRegexp(regexp.MustCompile(`hello`)),
+						appmention.TextRegexp(regexp.MustCompile(`world`)),
+					)
+					e := &slackevents.AppMentionEvent{Text: "hello world"}
+					err := h.HandleAppMentionEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+		})
+	})
+
 	Describe("InChannel", func() {
 		Context("When the event's channels is the same as the predicate's", func() {
 			It("calls the inner handler", func() {

@@ -56,3 +56,10 @@ func (p *textRegexpPredicate) Wrap(h Handler) Handler {
 		return h.HandleAppMentionEvent(e)
 	})
 }
+
+func Build(h Handler, preds ...Predicate) Handler {
+	for _, p := range preds {
+		h = p.Wrap(h)
+	}
+	return h
+}
