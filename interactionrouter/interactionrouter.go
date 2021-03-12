@@ -8,6 +8,7 @@ import (
 	"github.com/slack-go/slack"
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
+	"github.com/genkami/go-slack-event-router/routerutils"
 )
 
 type Handler interface {
@@ -169,9 +170,7 @@ func (r *Router) handleFallback(callback *slack.InteractionCallback) error {
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {
-	// TODO: verbose output
-	// TODO: move this to utils
-	w.WriteHeader(http.StatusInternalServerError)
+	routerutils.RespondWithError(w, err, true) // TODO: add verboseResponse
 }
 
 func FindBlockAction(callback *slack.InteractionCallback, blockID, actionID string) *slack.BlockAction {

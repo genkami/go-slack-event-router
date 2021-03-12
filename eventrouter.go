@@ -14,6 +14,7 @@ import (
 	routererrors "github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/message"
 	"github.com/genkami/go-slack-event-router/reaction"
+	"github.com/genkami/go-slack-event-router/routerutils"
 	"github.com/genkami/go-slack-event-router/signature"
 	"github.com/genkami/go-slack-event-router/urlverification"
 )
@@ -258,13 +259,5 @@ func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {
-	var httpErr routererrors.HttpError
-	if errors.As(err, &httpErr) {
-		w.WriteHeader(int(httpErr))
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	if r.verboseResponse {
-		_, _ = w.Write([]byte(err.Error()))
-	}
+	routerutils.RespondWithError(w, err, r.verboseResponse)
 }
