@@ -2,6 +2,7 @@ package eventrouter
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -203,7 +204,7 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	ev, ok := e.Data.(*slackevents.EventsAPIURLVerificationEvent)
 	if !ok {
-		r.respondWithError(w, errors.New("invalid url_verification event"))
+		r.respondWithError(w, fmt.Errorf("expected EventsAPIURLVerificationEvent but got %T", e.Data))
 		return
 	}
 	resp, err := r.urlVerificationHandler.HandleURLVerification(ev)
@@ -242,7 +243,7 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	ev, ok := e.Data.(*slackevents.EventsAPIAppRateLimited)
 	if !ok {
-		r.respondWithError(w, errors.New("invalid app_rate_limited event"))
+		r.respondWithError(w, fmt.Errorf("expected EventsAPIAppRateLimited but got %T = %v", e.Data, e.Data))
 		return
 	}
 	err := r.appRateLimitedHandler.HandleAppRateLimited(ev)
