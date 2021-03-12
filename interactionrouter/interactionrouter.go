@@ -24,6 +24,43 @@ type Predicate interface {
 	Wrap(Handler) Handler
 }
 
+type typePredicate struct {
+	typeName slack.InteractionType
+}
+
+func Type(typeName slack.InteractionType) Predicate {
+	return &typePredicate{typeName: typeName}
+}
+
+func (p *typePredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+		if callback.Type != p.typeName {
+			return routererrors.NotInterested
+		}
+		return h.HandleInteraction(callback)
+	})
+}
+
+type blockActionPredicate struct {
+	blockID  string
+	actionID string
+}
+
+func BlockAction(blockID, actionID string) Predicate {
+	return &blockActionPredicate{blockID: blockID, actionID: actionID}
+}
+
+func (p *blockActionPredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+		for _, ba := range callback.ActionCallback.BlockActions {
+			if ba.BlockID == p.blockID && ba.ActionID == p.actionID {
+				return nil
+			}
+		}
+		return routererrors.NotInterested
+	})
+}
+
 func Build(h Handler, preds ...Predicate) Handler {
 	for _, p := range preds {
 		h = p.Wrap(h)
