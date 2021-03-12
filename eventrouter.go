@@ -255,7 +255,7 @@ func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.Even
 		r.respondWithError(w, err)
 		return
 	}
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
@@ -273,6 +273,6 @@ func (r *Router) respondWithError(w http.ResponseWriter, err error) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	if r.verboseResponse {
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 	}
 }
