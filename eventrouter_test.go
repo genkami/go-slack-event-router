@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -183,6 +185,36 @@ var _ = Describe("EventRouter", func() {
 			err = dec.Decode(&body)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(body.Challenge).To(Equal("THE_SECRET_CHALLENGE_VALUE"))
+		})
+	})
+
+	Describe("App Rate Limited", func() {
+		var (
+			r *eventrouter.Router
+		)
+		BeforeEach(func() {
+			var err error
+			r, err = eventrouter.New(eventrouter.InsecureSkipVerification(), eventrouter.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("responds with 200", func() {
+			req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(`
+			{
+				"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+				"type": "app_rate_limited",
+				"team_id": "T123456",
+				"minute_rate_limited": 1518467820,
+				"api_app_id": "A123456"
+			}
+			`)))
+			Expect(err).NotTo(HaveOccurred())
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			resp := w.Result()
+			body, _ := ioutil.ReadAll(resp.Body)
+			fmt.Printf("body: %s\n", body)
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 	})
 })

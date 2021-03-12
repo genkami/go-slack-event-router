@@ -192,7 +192,16 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	case slackevents.CallbackEvent:
 		router.handleCallbackEvent(w, &eventsAPIEvent)
 	case slackevents.AppRateLimited:
-		router.handleAppRateLimited(w, &eventsAPIEvent)
+		// Surprisingly, ParseEvent can't deal with EventsAPIAppRateLimitedEvent correctly.
+		// So we should re-parse the entire body for now.
+		appRateLimited := slackevents.EventsAPIAppRateLimited{}
+		err := json.Unmarshal(body, &appRateLimited)
+		if err != nil {
+			router.respondWithError(
+				w,
+				errors.WithMessage(err, "failed to parse app_rate_limited event"))
+		}
+		router.handleAppRateLimited(w, &appRateLimited)
 	default:
 		router.respondWithError(
 			w,
@@ -240,13 +249,8 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 	w.WriteHeader(http.StatusOK)
 }
 
-func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
-	ev, ok := e.Data.(*slackevents.EventsAPIAppRateLimited)
-	if !ok {
-		r.respondWithError(w, fmt.Errorf("expected EventsAPIAppRateLimited but got %T = %v", e.Data, e.Data))
-		return
-	}
-	err := r.appRateLimitedHandler.HandleAppRateLimited(ev)
+func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIAppRateLimited) {
+	err := r.appRateLimitedHandler.HandleAppRateLimited(e)
 	if err != nil {
 		r.respondWithError(w, err)
 		return
