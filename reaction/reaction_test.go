@@ -27,6 +27,81 @@ var _ = Describe("Reaction", func() {
 		numHandlerCalled = 0
 	})
 
+	Describe("BuildAdded", func() {
+		Context("when no predicate is given", func() {
+			It("returns the original handler", func() {
+				h := reaction.BuildAdded(innerAddedHandler)
+				e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+				err := h.HandleReactionAddedEvent(e)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when a single predicate is given", func() {
+			Context("when the predicate matches to the given message", func() {
+				It("calls the inner handler", func() {
+					h := reaction.BuildAdded(innerAddedHandler, reaction.Name("smile"))
+					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("when the predicate does not match to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.BuildAdded(innerAddedHandler, reaction.Name("sob"))
+					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Context("when more than one predicates are given", func() {
+			Context("when none of the predicates matches to the given message", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.BuildAdded(innerAddedHandler,
+						reaction.Name("sob"),
+						reaction.Name("cry"),
+					)
+					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when some of the predicates matche to the given message but others don't", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.BuildAdded(innerAddedHandler,
+						reaction.Name("smile"),
+						reaction.Name("sob"),
+					)
+					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+
+			Context("when all of the predicates matche to the given message", func() {
+				It("calls the inner handler", func() {
+					h := reaction.BuildAdded(innerAddedHandler,
+						reaction.Name("smile"),
+						reaction.Name("smile"),
+					)
+					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
+					err := h.HandleReactionAddedEvent(e)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+		})
+	})
+
 	Describe("Name", func() {
 		Describe("WrapAdded", func() {
 			Context("When the reaction's name is the same as the predicate's", func() {

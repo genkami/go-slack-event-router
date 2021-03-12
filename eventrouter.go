@@ -126,9 +126,7 @@ func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicat
 }
 
 func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Predicate) {
-	for _, p := range preds {
-		h = p.WrapAdded(h)
-	}
+	h = reaction.BuildAdded(h, preds...)
 	r.On(slackevents.ReactionAdded, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionAddedEvent)
 		if !ok {

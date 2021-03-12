@@ -120,3 +120,10 @@ func (p *messageTextRegexpPredicate) WrapRemoved(h RemovedHandler) RemovedHandle
 		return h.HandleReactionRemovedEvent(e)
 	})
 }
+
+func BuildAdded(h AddedHandler, preds ...Predicate) AddedHandler {
+	for _, p := range preds {
+		h = p.WrapAdded(h)
+	}
+	return h
+}
