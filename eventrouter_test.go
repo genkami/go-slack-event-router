@@ -68,7 +68,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is valid", func() {
 			It("responds with 200", func() {
-				req, err := NewRequest(token, content, nil)
+				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -79,7 +79,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is invalid", func() {
 			It("responds with Unauthorized", func() {
-				req, err := NewRequest(token, content, nil)
+				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
 				w := httptest.NewRecorder()
@@ -92,7 +92,7 @@ var _ = Describe("EventRouter", func() {
 		Context("when the timestamp is too old", func() {
 			It("responds with Unauthorized", func() {
 				ts := time.Now().Add(-1 * time.Hour)
-				req, err := NewRequest(token, content, &ts)
+				req, err := NewSignedRequest(token, content, &ts)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -121,7 +121,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is valid", func() {
 			It("responds with 200", func() {
-				req, err := NewRequest(token, content, nil)
+				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -132,7 +132,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when the signature is invalid", func() {
 			It("responds with 200", func() {
-				req, err := NewRequest(token, content, nil)
+				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
 				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
 				w := httptest.NewRecorder()
@@ -145,7 +145,7 @@ var _ = Describe("EventRouter", func() {
 		Context("when the timestamp is too old", func() {
 			It("responds with 200", func() {
 				ts := time.Now().Add(-1 * time.Hour)
-				req, err := NewRequest(token, content, &ts)
+				req, err := NewSignedRequest(token, content, &ts)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
@@ -187,7 +187,7 @@ var _ = Describe("EventRouter", func() {
 	})
 })
 
-func NewRequest(signingSecret string, body string, ts *time.Time) (*http.Request, error) {
+func NewSignedRequest(signingSecret string, body string, ts *time.Time) (*http.Request, error) {
 	var now time.Time
 	if ts == nil {
 		now = time.Now()
