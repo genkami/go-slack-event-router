@@ -266,9 +266,9 @@ func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {
-	var httpErr *routererrors.HttpError
+	var httpErr routererrors.HttpError
 	if errors.As(err, &httpErr) {
-		w.WriteHeader(int(*httpErr))
+		w.WriteHeader(int(httpErr))
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
