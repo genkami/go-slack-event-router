@@ -1,2 +1,4 @@
 # go-slack-event-router
-Slack Event Router
+
+![WORK IN PROGRESS](./doc/img/WIP.png)
+
