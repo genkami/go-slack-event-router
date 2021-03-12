@@ -3,12 +3,14 @@ package eventrouter_test
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/slack-go/slack/slackevents"
 
 	eventrouter "github.com/genkami/go-slack-event-router"
 	"github.com/genkami/go-slack-event-router/signature"
@@ -150,6 +152,37 @@ var _ = Describe("EventRouter", func() {
 				resp := w.Result()
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			})
+		})
+	})
+
+	Describe("URL Verification", func() {
+		var (
+			r *eventrouter.Router
+		)
+		BeforeEach(func() {
+			var err error
+			r, err = eventrouter.New(eventrouter.InsecureSkipVerification(), eventrouter.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("returns the given challenge in JSON", func() {
+			req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(`
+			{
+				"token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+				"challenge": "THE_SECRET_CHALLENGE_VALUE",
+				"type": "url_verification"
+			}
+			`)))
+			Expect(err).NotTo(HaveOccurred())
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			resp := w.Result()
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			dec := json.NewDecoder(resp.Body)
+			body := slackevents.ChallengeResponse{}
+			err = dec.Decode(&body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(body.Challenge).To(Equal("THE_SECRET_CHALLENGE_VALUE"))
 		})
 	})
 })
