@@ -294,14 +294,14 @@ var _ = Describe("InteractionRouter", func() {
 		})
 
 		Context("when the timestamp is too old", func() {
-			It("responds with Unauthorized", func() {
+			It("responds with BadRequest", func() {
 				ts := time.Now().Add(-1 * time.Hour)
 				req, err := NewSignedRequest(token, content, &ts)
 				Expect(err).NotTo(HaveOccurred())
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				resp := w.Result()
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 			})
 		})
 	})

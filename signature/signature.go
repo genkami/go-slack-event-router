@@ -5,7 +5,6 @@ package signature
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -31,11 +30,7 @@ type Middleware struct {
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	verifier, err := slack.NewSecretsVerifier(r.Header, m.SigningSecret)
 	if err != nil {
-		if errors.Is(err, slack.ErrExpiredTimestamp) {
-			w.WriteHeader(http.StatusUnauthorized)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		w.WriteHeader(http.StatusBadRequest)
 		if m.VerboseResponse {
 			fmt.Fprintf(w, "failed to initialize verifier: %s", err.Error())
 		}
