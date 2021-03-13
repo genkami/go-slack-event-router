@@ -22,6 +22,12 @@ import (
 
 // Handler is a handler that processes events from Slack.
 // Usually you don't need to use this directly. Instead, you might want to use event-specific handler types like `appmention.Handler`.
+//
+// Handlers may return `routererrors.NotInterested` (or its equivalents in the sense of `errors.Is`). In such case the Router falls back to other handlers.
+//
+// Handlers also may return `routererrors.HttpError` (or its equivalents in the sense of `errors.Is`). In such case the Router responds with corresponding HTTP status codes.
+//
+// If any other errors are returned, the Router responds with Internal Server Error.
 type Handler interface {
 	HandleEventsAPIEvent(*slackevents.EventsAPIEvent) error
 }
@@ -44,7 +50,7 @@ func (f optionFunc) apply(r *Router) {
 }
 
 // InsecureSkipVerification skips verifying request signatures.
-// This is useful to test your handlers, but do not use this in the production environment.
+// This is useful to test your handlers, but do not use this in production environments.
 func InsecureSkipVerification() Option {
 	return optionFunc(func(r *Router) {
 		r.skipVerification = true
@@ -67,7 +73,7 @@ func VerboseResponse() Option {
 	})
 }
 
-// Router is a http.Handler that processes events from Slack via Events API.
+// Router is an http.Handler that processes events from Slack via Events API.
 //
 // For more details, see https://api.slack.com/apis/connections/events-api.
 type Router struct {
@@ -114,6 +120,12 @@ func New(options ...Option) (*Router, error) {
 // On registers a handler for a specific event type.
 //
 // If more than one handlers are registered, the first ones take precedence.
+//
+// Handlers may return `routererrors.NotInterested` (or its equivalents in the sense of `errors.Is`). In such case the Router falls back to other handlers.
+//
+// Handlers also may return `routererrors.HttpError` (or its equivalents in the sense of `errors.Is`). In such case the Router responds with corresponding HTTP status codes.
+//
+// If any other errors are returned, the Router responds with Internal Server Error.
 //
 // This can be useful if you have a general-purpose event handlers that can process arbitrary types of events,
 // but, in the most cases it would be better option to use event-specfic `OnEVENT_NAME` methods instead.
