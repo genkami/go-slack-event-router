@@ -3,6 +3,7 @@ package interactionrouter_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
@@ -367,7 +369,161 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 	})
+
+	Describe("On", func() {
+		var (
+			r       *ir.Router
+			content = `
+			{
+				"type": "shortcut",
+				"token": "XXXXXXXXXXXXX",
+				"action_ts": "1581106241.371594",
+				"team": {
+				  "id": "TXXXXXXXX",
+				  "domain": "shortcuts-test"
+				},
+				"user": {
+				  "id": "UXXXXXXXXX",
+				  "username": "aman",
+				  "team_id": "TXXXXXXXX"
+				},
+				"callback_id": "shortcut_create_task",
+				"trigger_id": "944799105734.773906753841.38b5894552bdd4a780554ee59d1f3638"
+			}`
+			numHandlerCalled = 0
+			handler          = ir.HandlerFunc(func(e *slack.InteractionCallback) error {
+				numHandlerCalled++
+				return nil
+			})
+		)
+		BeforeEach(func() {
+			numHandlerCalled = 0
+			var err error
+			r, err = ir.New(ir.InsecureSkipVerification(), ir.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when no handler is registered", func() {
+			It("just responds with 200", func() {
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+
+		Context("when a matching handler is registered", func() {
+			It("calls the handler and responds with 200", func() {
+				r.On(slack.InteractionTypeShortcut, handler)
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when a matching handler is registered to a different type of events", func() {
+			It("does not call the handler and responds with 200", func() {
+				r.On("other_interaction_type", handler)
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+
+		Context("when a handler returned an error", func() {
+			It("responds with InternalServerError", func() {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					return fmt.Errorf("something wrong happened")
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
+			})
+		})
+
+		Context("when a handler returned NotInterested", func() {
+			It("responds with 200", func() {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					return routererrors.NotInterested
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when a handler returned an error that equals to NotInterested using errors.Is", func() {
+			It("responds with 200", func() {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					return errors.WithMessage(routererrors.NotInterested, "not interested")
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when a handler returned an HttpError", func() {
+			It("responds with a corresponding status code", func() {
+				code := http.StatusUnauthorized
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					return routererrors.HttpError(code)
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(code))
+			})
+		})
+
+		Context("when a handler returned an error that equals to HttpError using errors.As", func() {
+			It("responds with a corresponding status code", func() {
+				code := http.StatusUnauthorized
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					return errors.WithMessage(routererrors.HttpError(code), "you ain't authorized")
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(code))
+			})
+		})
+	})
 })
+
+func NewRequest(payload string) (*http.Request, error) {
+	body := buildRequestBody(payload)
+	req, err := http.NewRequest(http.MethodPost, "http://example.com/path/to/callback", bytes.NewReader([]byte(body)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req, nil
+}
 
 func NewSignedRequest(signingSecret string, payload string, ts *time.Time) (*http.Request, error) {
 	var now time.Time
@@ -376,16 +532,19 @@ func NewSignedRequest(signingSecret string, payload string, ts *time.Time) (*htt
 	} else {
 		now = *ts
 	}
-	form := url.Values{}
-	form.Set("payload", payload)
-	body := form.Encode()
-	req, err := http.NewRequest(http.MethodPost, "http://example.com/path/to/callback", bytes.NewReader([]byte(body)))
+	req, err := NewRequest(payload)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	body := buildRequestBody(payload)
 	if err := signature.AddSignature(req.Header, []byte(signingSecret), []byte(body), now); err != nil {
 		return nil, err
 	}
 	return req, nil
+}
+
+func buildRequestBody(payload string) []byte {
+	form := url.Values{}
+	form.Set("payload", payload)
+	return []byte(form.Encode())
 }
