@@ -54,12 +54,10 @@ func BlockAction(blockID, actionID string) Predicate {
 
 func (p *blockActionPredicate) Wrap(h Handler) Handler {
 	return HandlerFunc(func(callback *slack.InteractionCallback) error {
-		for _, ba := range callback.ActionCallback.BlockActions {
-			if ba.BlockID == p.blockID && ba.ActionID == p.actionID {
-				return h.HandleInteraction(callback)
-			}
+		if FindBlockAction(callback, p.blockID, p.actionID) == nil {
+			return routererrors.NotInterested
 		}
-		return routererrors.NotInterested
+		return h.HandleInteraction(callback)
 	})
 }
 
