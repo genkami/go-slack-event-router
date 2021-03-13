@@ -1,6 +1,8 @@
+// Package interactionrouter provides a way to dispatch interactive callbacks sent from Slack.
+//
+// For more details, see https://api.slack.com/interactivity/handling.
 package interactionrouter
 
-// Package interactionrouter provides a way to dispatch interactive callbacks sent from Slack.
 import (
 	"encoding/json"
 	"net/http"
@@ -132,6 +134,8 @@ func InsecureSkipVerification() Option {
 // WithSigningToken sets a signing token to verify requests from Slack.
 //
 // For more details, see https://api.slack.com/authentication/verifying-requests-from-slack.
+//
+// TODO: Rename this to WithSigningSecret
 func WithSigningToken(token string) Option {
 	return optionFunc(func(r *Router) {
 		r.signingToken = token
@@ -273,6 +277,8 @@ func (r *Router) respondWithError(w http.ResponseWriter, err error) {
 	routerutils.RespondWithError(w, err, r.verboseResponse)
 }
 
+// FindBlockAction finds a block action whose blockID and actionID equal to the given ones.
+// If no such block action is found, it returns nil.
 func FindBlockAction(callback *slack.InteractionCallback, blockID, actionID string) *slack.BlockAction {
 	for _, ba := range callback.ActionCallback.BlockActions {
 		if ba.BlockID == blockID && ba.ActionID == actionID {

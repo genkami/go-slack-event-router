@@ -1,3 +1,6 @@
+// Package signature provides helpers to validate request signature.
+//
+// Fore more details, see https://api.slack.com/authentication/verifying-requests-from-slack.
 package signature
 
 import (
@@ -21,10 +24,18 @@ const (
 	HeaderSignature = "X-Slack-Signature"
 )
 
+// Middleware is an `http.Handler` middleware that automatically verifies request signatures.
 type Middleware struct {
-	Secret          string
+	// Secret is a signing secret.
+	//
+	// You can find this value by following this instruction: https://api.slack.com/authentication/verifying-requests-from-slack#signing_secrets_admin_page
+	Secret string
+
+	// If set to true, the middleware puts error details to the response body when it fails verification.
 	VerboseResponse bool
-	Handler         http.Handler
+
+	// Handler is an internal handler to perform actual request processing.
+	Handler http.Handler
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +71,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Handler.ServeHTTP(w, r)
 }
 
+// TODO: move this to internal/testutils
 func AddSignature(h http.Header, key, body []byte, timestamp time.Time) error {
 	hash := hmac.New(sha256.New, key)
 	strTime := strconv.FormatInt(timestamp.Unix(), 10)

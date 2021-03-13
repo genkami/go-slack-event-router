@@ -60,6 +60,8 @@ func InsecureSkipVerification() Option {
 // WithSigningToken sets a signing token to verify requests from Slack.
 //
 // For more details, see https://api.slack.com/authentication/verifying-requests-from-slack.
+//
+// TODO: Rename this to WithSigningSecret
 func WithSigningToken(token string) Option {
 	return optionFunc(func(r *Router) {
 		r.signingToken = token

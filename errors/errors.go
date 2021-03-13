@@ -1,3 +1,4 @@
+// Package errors provides error values and types that are intended to be used to implement handlers.
 package errors
 
 import (
