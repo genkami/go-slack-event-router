@@ -176,6 +176,10 @@ func (r *Router) On(typeName slack.InteractionType, h Handler, preds ...Predicat
 	r.handlers[typeName] = handlers
 }
 
+func (r *Router) SetFallback(h Handler) {
+	r.fallbackHandler = h
+}
+
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	router.httpHandler.ServeHTTP(w, req)
 }

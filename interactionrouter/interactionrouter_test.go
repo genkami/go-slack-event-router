@@ -512,6 +512,176 @@ var _ = Describe("InteractionRouter", func() {
 				Expect(resp.StatusCode).To(Equal(code))
 			})
 		})
+
+		Describe("Fallback", func() {
+			var (
+				numFirstHandlerCalled  int
+				numSecondHandlerCalled int
+				numFallbackCalled      int
+				firstError             error
+				secondError            error
+				fallbackError          error
+			)
+			BeforeEach(func() {
+				numFirstHandlerCalled = 0
+				numSecondHandlerCalled = 0
+				numFallbackCalled = 0
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numFirstHandlerCalled++
+					return firstError
+				}))
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numSecondHandlerCalled++
+					return secondError
+				}))
+				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numFallbackCalled++
+					return fallbackError
+				}))
+			})
+
+			Context("when a first handler returned nil", func() {
+				It("does not fall back to other handlers", func() {
+					firstError = nil
+					secondError = nil
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(0))
+					Expect(numFallbackCalled).To(Equal(0))
+				})
+			})
+
+			Context("when a first handler returned an error", func() {
+				It("responds with InternalServerError and does not fall back to other handlers", func() {
+					firstError = errors.New("error in the first handler")
+					secondError = nil
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(0))
+					Expect(numFallbackCalled).To(Equal(0))
+				})
+			})
+
+			Context("when a first handler returned NotInterested", func() {
+				It("falls back to another handler", func() {
+					firstError = routererrors.NotInterested
+					secondError = nil
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(1))
+					Expect(numFallbackCalled).To(Equal(0))
+				})
+			})
+
+			Context("when a first handler returned an error that equals to NotInterested using errors.Is", func() {
+				It("falls back to another handler", func() {
+					firstError = errors.WithMessage(routererrors.NotInterested, "not interested")
+					secondError = nil
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(1))
+					Expect(numFallbackCalled).To(Equal(0))
+				})
+			})
+
+			Context("when the last handler returned NotInterested", func() {
+				It("falls back to fallback handler", func() {
+					firstError = routererrors.NotInterested
+					secondError = routererrors.NotInterested
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(1))
+					Expect(numFallbackCalled).To(Equal(1))
+				})
+			})
+
+			Context("when the last handler returned an error that equals to NotInterested using errors.Is", func() {
+				It("falls back to fallback handler", func() {
+					firstError = routererrors.NotInterested
+					secondError = errors.WithMessage(routererrors.NotInterested, "not interested")
+					fallbackError = nil
+					req, err := NewRequest(content)
+					Expect(err).NotTo(HaveOccurred())
+					w := httptest.NewRecorder()
+					r.ServeHTTP(w, req)
+					resp := w.Result()
+					Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					Expect(numFirstHandlerCalled).To(Equal(1))
+					Expect(numSecondHandlerCalled).To(Equal(1))
+					Expect(numFallbackCalled).To(Equal(1))
+				})
+			})
+		})
+
+		Context("when no handler except for fallback is registered", func() {
+			It("calls fallback handler", func() {
+				numCalled := 0
+				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numCalled++
+					return nil
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(numCalled).To(Equal(1))
+			})
+		})
+
+		Context("when more than one fallback handlers are registered", func() {
+			It("uses the last one", func() {
+				numFirstHandlerCalled := 0
+				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numFirstHandlerCalled++
+					return nil
+				}))
+				numLastHandlerCalled := 0
+				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+					numLastHandlerCalled++
+					return nil
+				}))
+				req, err := NewRequest(content)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(numFirstHandlerCalled).To(Equal(0))
+				Expect(numLastHandlerCalled).To(Equal(1))
+			})
+		})
 	})
 })
 
