@@ -13,9 +13,9 @@ import (
 	"github.com/genkami/go-slack-event-router/appmention"
 	"github.com/genkami/go-slack-event-router/appratelimited"
 	routererrors "github.com/genkami/go-slack-event-router/errors"
+	"github.com/genkami/go-slack-event-router/internal/routerutils"
 	"github.com/genkami/go-slack-event-router/message"
 	"github.com/genkami/go-slack-event-router/reaction"
-	"github.com/genkami/go-slack-event-router/routerutils"
 	"github.com/genkami/go-slack-event-router/signature"
 	"github.com/genkami/go-slack-event-router/urlverification"
 )

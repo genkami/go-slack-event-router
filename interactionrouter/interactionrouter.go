@@ -11,7 +11,7 @@ import (
 	"github.com/slack-go/slack"
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
-	"github.com/genkami/go-slack-event-router/routerutils"
+	"github.com/genkami/go-slack-event-router/internal/routerutils"
 	"github.com/genkami/go-slack-event-router/signature"
 )
 

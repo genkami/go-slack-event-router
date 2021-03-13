@@ -16,7 +16,7 @@ import (
 
 	eventrouter "github.com/genkami/go-slack-event-router"
 	routererrors "github.com/genkami/go-slack-event-router/errors"
-	"github.com/genkami/go-slack-event-router/signature"
+	"github.com/genkami/go-slack-event-router/internal/testutils"
 )
 
 var _ = Describe("EventRouter", func() {
@@ -84,7 +84,7 @@ var _ = Describe("EventRouter", func() {
 			It("responds with Unauthorized", func() {
 				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
-				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				req.Header.Set(testutils.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				resp := w.Result()
@@ -137,7 +137,7 @@ var _ = Describe("EventRouter", func() {
 			It("responds with 200", func() {
 				req, err := NewSignedRequest(token, content, nil)
 				Expect(err).NotTo(HaveOccurred())
-				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				req.Header.Set(testutils.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
 				resp := w.Result()
@@ -543,7 +543,7 @@ func NewSignedRequest(signingSecret string, body string, ts *time.Time) (*http.R
 	if err != nil {
 		return nil, err
 	}
-	if err := signature.AddSignature(req.Header, []byte(signingSecret), []byte(body), now); err != nil {
+	if err := testutils.AddSignature(req.Header, []byte(signingSecret), []byte(body), now); err != nil {
 		return nil, err
 	}
 	return req, nil

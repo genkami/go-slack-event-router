@@ -1,4 +1,3 @@
-// TODO: move this to internal/routerutils
 package routerutils
 
 import (
