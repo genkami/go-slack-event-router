@@ -1,3 +1,4 @@
+// Package eventrouter provides a way to dispatch events from Slack.
 package eventrouter
 
 import (
@@ -19,6 +20,8 @@ import (
 	"github.com/genkami/go-slack-event-router/urlverification"
 )
 
+// Handler is a handler that processes events from Slack.
+// Usually you don't need to use this directly. Instead, you might want to use event-specific handler types like `appmention.Handler`.
 type Handler interface {
 	HandleEventsAPIEvent(*slackevents.EventsAPIEvent) error
 }
@@ -29,6 +32,7 @@ func (f HandlerFunc) HandleEventsAPIEvent(e *slackevents.EventsAPIEvent) error {
 	return f(e)
 }
 
+// Option configures the Router.
 type Option interface {
 	apply(*Router)
 }
@@ -39,24 +43,33 @@ func (f optionFunc) apply(r *Router) {
 	f(r)
 }
 
+// InsecureSkipVerification skips verifying request signatures.
+// This is useful to test your handlers, but do not use this in the production environment.
 func InsecureSkipVerification() Option {
 	return optionFunc(func(r *Router) {
 		r.skipVerification = true
 	})
 }
 
+// WithSigningToken sets a signing token to verify requests from Slack.
+//
+// For more details, see https://api.slack.com/authentication/verifying-requests-from-slack.
 func WithSigningToken(token string) Option {
 	return optionFunc(func(r *Router) {
 		r.signingToken = token
 	})
 }
 
+// If VerboseResponse is set, the Router shows error details when it fails to process requests.
 func VerboseResponse() Option {
 	return optionFunc(func(r *Router) {
 		r.verboseResponse = true
 	})
 }
 
+// Router is a http.Handler that processes events from Slack via Events API.
+//
+// For more details, see https://api.slack.com/apis/connections/events-api.
 type Router struct {
 	signingToken           string
 	skipVerification       bool
@@ -68,6 +81,9 @@ type Router struct {
 	httpHandler            http.Handler
 }
 
+// New creates a new Router.
+//
+// At least one of WithSigningToken() or InsecureSkipVerification() must be specified.
 func New(options ...Option) (*Router, error) {
 	r := &Router{
 		callbackHandlers:       make(map[string][]Handler),
@@ -95,6 +111,12 @@ func New(options ...Option) (*Router, error) {
 	return r, nil
 }
 
+// On registers a handler for a specific event type.
+//
+// If more than one handlers are registered, the first ones take precedence.
+//
+// This can be useful if you have a general-purpose event handlers that can process arbitrary types of events,
+// but, in the most cases it would be better option to use event-specfic `OnEVENT_NAME` methods instead.
 func (r *Router) On(eventType string, h Handler) {
 	handlers, ok := r.callbackHandlers[eventType]
 	if !ok {
@@ -104,6 +126,12 @@ func (r *Router) On(eventType string, h Handler) {
 	r.callbackHandlers[eventType] = handlers
 }
 
+// OnMessage registers a handler that processes `message` events.
+//
+// If more than one handlers are registered, the first ones take precedence.
+//
+// Predicates are used to distinguish whether a coming event should be processed by the given handler or not.
+// The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
 	h = message.Build(h, preds...)
 	r.On(slackevents.Message, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
@@ -115,6 +143,12 @@ func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
 	}))
 }
 
+// OnAppMention registers a handler that processes `app_mention` events.
+//
+// If more than one handlers are registered, the first ones take precedence.
+//
+// Predicates are used to distinguish whether a coming event should be processed by the given handler or not.
+// The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
 	h = appmention.Build(h, preds...)
 	r.On(slackevents.AppMention, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
@@ -126,6 +160,12 @@ func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicat
 	}))
 }
 
+// OnReactionAdded registers a handler that processes `reaction_added` events.
+//
+// If more than one handlers are registered, the first ones take precedence.
+//
+// Predicates are used to distinguish whether a coming event should be processed by the given handler or not.
+// The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Predicate) {
 	h = reaction.BuildAdded(h, preds...)
 	r.On(slackevents.ReactionAdded, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
@@ -137,6 +177,12 @@ func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Pred
 	}))
 }
 
+// OnReactionRemoved registers a handler that processes `reaction_removed` events.
+//
+// If more than one handlers are registered, the first ones take precedence.
+//
+// Predicates are used to distinguish whether a coming event should be processed by the given handler or not.
+// The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.Predicate) {
 	h = reaction.BuildRemoved(h, preds...)
 	r.On(slackevents.ReactionRemoved, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
@@ -148,14 +194,27 @@ func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.
 	}))
 }
 
+// SetURLVerificationHandler sets a handler to process `url_verification` events.
+//
+// If more than one handlers are registered, the last one will be used.
+//
+// For more details see https://api.slack.com/events/url_verification.
 func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
 	r.urlVerificationHandler = h
 }
 
+// SetAppRateLimitedHandler sets a handler to process `app_rate_limited` events.
+//
+// If more than one handlers are registered, the last one will be used.
+//
+// For more details see https://api.slack.com/docs/rate-limits#rate-limits__events-api.
 func (r *Router) SetAppRateLimitedHandler(h appratelimited.Handler) {
 	r.appRateLimitedHandler = h
 }
 
+// SetFallback sets a fallback handler that is called when none of the registered handlers matches to a coming event.
+//
+// If more than one handlers are registered, the last one will be used.
 func (r *Router) SetFallback(h Handler) {
 	r.fallbackHandler = h
 }
