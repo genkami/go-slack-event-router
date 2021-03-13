@@ -55,7 +55,7 @@ func (p *blockActionPredicate) Wrap(h Handler) Handler {
 	return HandlerFunc(func(callback *slack.InteractionCallback) error {
 		for _, ba := range callback.ActionCallback.BlockActions {
 			if ba.BlockID == p.blockID && ba.ActionID == p.actionID {
-				return nil
+				return h.HandleInteraction(callback)
 			}
 		}
 		return routererrors.NotInterested
