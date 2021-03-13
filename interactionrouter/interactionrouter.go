@@ -9,6 +9,7 @@ import (
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
 	"github.com/genkami/go-slack-event-router/routerutils"
+	"github.com/genkami/go-slack-event-router/signature"
 )
 
 type Handler interface {
@@ -113,10 +114,56 @@ func (f optionFunc) apply(r *Router) {
 	f(r)
 }
 
+func InsecureSkipVerification() Option {
+	return optionFunc(func(r *Router) {
+		r.skipVerification = true
+	})
+}
+
+func WithSigningToken(token string) Option {
+	return optionFunc(func(r *Router) {
+		r.signingToken = token
+	})
+}
+
+func VerboseResponse() Option {
+	return optionFunc(func(r *Router) {
+		r.verboseResponse = true
+	})
+}
+
 type Router struct {
-	// TODO: check signature
-	handlers        map[slack.InteractionType][]Handler
-	fallbackHandler Handler
+	signingToken     string
+	skipVerification bool
+	handlers         map[slack.InteractionType][]Handler
+	fallbackHandler  Handler
+	verboseResponse  bool
+	httpHandler      http.Handler
+}
+
+func New(opts ...Option) (*Router, error) {
+	r := &Router{
+		handlers: make(map[slack.InteractionType][]Handler),
+	}
+	for _, o := range opts {
+		o.apply(r)
+	}
+	if r.signingToken == "" && !r.skipVerification {
+		return nil, errors.New("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
+	}
+	if r.signingToken != "" && r.skipVerification {
+		return nil, errors.New("both WithSigningToken and InsecureSkipVerification are given")
+	}
+
+	r.httpHandler = http.HandlerFunc(r.serveHTTP)
+	if !r.skipVerification {
+		r.httpHandler = &signature.Middleware{
+			Secret:          r.signingToken,
+			VerboseResponse: r.verboseResponse,
+			Handler:         r.httpHandler,
+		}
+	}
+	return r, nil
 }
 
 func (r *Router) On(typeName slack.InteractionType, h Handler, preds ...Predicate) {
@@ -127,6 +174,10 @@ func (r *Router) On(typeName slack.InteractionType, h Handler, preds ...Predicat
 	}
 	handlers = append(handlers, h)
 	r.handlers[typeName] = handlers
+}
+
+func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	router.httpHandler.ServeHTTP(w, req)
 }
 
 func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
@@ -170,7 +221,7 @@ func (r *Router) handleFallback(callback *slack.InteractionCallback) error {
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {
-	routerutils.RespondWithError(w, err, true) // TODO: add verboseResponse
+	routerutils.RespondWithError(w, err, r.verboseResponse)
 }
 
 func FindBlockAction(callback *slack.InteractionCallback, blockID, actionID string) *slack.BlockAction {
