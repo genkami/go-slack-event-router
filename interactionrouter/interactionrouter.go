@@ -131,14 +131,12 @@ func InsecureSkipVerification() Option {
 	})
 }
 
-// WithSigningToken sets a signing token to verify requests from Slack.
+// WithSigningSecret sets a signing token to verify requests from Slack.
 //
 // For more details, see https://api.slack.com/authentication/verifying-requests-from-slack.
-//
-// TODO: Rename this to WithSigningSecret
-func WithSigningToken(token string) Option {
+func WithSigningSecret(token string) Option {
 	return optionFunc(func(r *Router) {
-		r.signingToken = token
+		r.signingSecret = token
 	})
 }
 
@@ -153,7 +151,7 @@ func VerboseResponse() Option {
 //
 // For more details, see https://api.slack.com/interactivity/handling.
 type Router struct {
-	signingToken     string
+	signingSecret    string
 	skipVerification bool
 	handlers         map[slack.InteractionType][]Handler
 	fallbackHandler  Handler
@@ -163,7 +161,7 @@ type Router struct {
 
 // New creates a new Router.
 //
-// At least one of WithSigningToken() or InsecureSkipVerification() must be specified.
+// At least one of WithSigningSecret() or InsecureSkipVerification() must be specified.
 func New(opts ...Option) (*Router, error) {
 	r := &Router{
 		handlers: make(map[slack.InteractionType][]Handler),
@@ -171,17 +169,17 @@ func New(opts ...Option) (*Router, error) {
 	for _, o := range opts {
 		o.apply(r)
 	}
-	if r.signingToken == "" && !r.skipVerification {
-		return nil, errors.New("WithSigningToken must be set, or you can ignore this by setting InsecureSkipVerification")
+	if r.signingSecret == "" && !r.skipVerification {
+		return nil, errors.New("WithSigningSecret must be set, or you can ignore this by setting InsecureSkipVerification")
 	}
-	if r.signingToken != "" && r.skipVerification {
-		return nil, errors.New("both WithSigningToken and InsecureSkipVerification are given")
+	if r.signingSecret != "" && r.skipVerification {
+		return nil, errors.New("both WithSigningSecret and InsecureSkipVerification are given")
 	}
 
 	r.httpHandler = http.HandlerFunc(r.serveHTTP)
 	if !r.skipVerification {
 		r.httpHandler = &signature.Middleware{
-			Secret:          r.signingToken,
+			Secret:          r.signingSecret,
 			VerboseResponse: r.verboseResponse,
 			Handler:         r.httpHandler,
 		}

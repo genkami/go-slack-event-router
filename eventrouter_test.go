@@ -21,10 +21,10 @@ import (
 
 var _ = Describe("EventRouter", func() {
 	Describe("New", func() {
-		Context("when neither WithSigningToken nor InsecureSkipVerification is given", func() {
+		Context("when neither WithSigningSecret nor InsecureSkipVerification is given", func() {
 			It("returns an error", func() {
 				_, err := eventrouter.New()
-				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+				Expect(err).To(MatchError(MatchRegexp("WithSigningSecret")))
 			})
 		})
 
@@ -36,18 +36,18 @@ var _ = Describe("EventRouter", func() {
 			})
 		})
 
-		Context("when WithSigningToken is given", func() {
+		Context("when WithSigningSecret is given", func() {
 			It("returns a new Router", func() {
-				r, err := eventrouter.New(eventrouter.WithSigningToken("THE_TOKEN"))
+				r, err := eventrouter.New(eventrouter.WithSigningSecret("THE_TOKEN"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(r).NotTo(BeNil())
 			})
 		})
 
-		Context("when both WithSigningToken and InsecureSkipVerification are given", func() {
+		Context("when both WithSigningSecret and InsecureSkipVerification are given", func() {
 			It("returns an error", func() {
-				_, err := eventrouter.New(eventrouter.InsecureSkipVerification(), eventrouter.WithSigningToken("THE_TOKEN"))
-				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+				_, err := eventrouter.New(eventrouter.InsecureSkipVerification(), eventrouter.WithSigningSecret("THE_TOKEN"))
+				Expect(err).To(MatchError(MatchRegexp("WithSigningSecret")))
 			})
 		})
 	})
@@ -65,7 +65,7 @@ var _ = Describe("EventRouter", func() {
 		)
 		BeforeEach(func() {
 			var err error
-			r, err = eventrouter.New(eventrouter.WithSigningToken(token), eventrouter.VerboseResponse())
+			r, err = eventrouter.New(eventrouter.WithSigningSecret(token), eventrouter.VerboseResponse())
 			Expect(err).NotTo(HaveOccurred())
 		})
 

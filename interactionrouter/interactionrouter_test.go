@@ -211,10 +211,10 @@ var _ = Describe("InteractionRouter", func() {
 	})
 
 	Describe("New", func() {
-		Context("when neither WithSigningToken nor InsecureSkipVerification is given", func() {
+		Context("when neither WithSigningSecret nor InsecureSkipVerification is given", func() {
 			It("returns an error", func() {
 				_, err := ir.New()
-				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+				Expect(err).To(MatchError(MatchRegexp("WithSigningSecret")))
 			})
 		})
 
@@ -226,18 +226,18 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 
-		Context("when WithSigningToken is given", func() {
+		Context("when WithSigningSecret is given", func() {
 			It("returns a new Router", func() {
-				r, err := ir.New(ir.WithSigningToken("THE_TOKEN"))
+				r, err := ir.New(ir.WithSigningSecret("THE_TOKEN"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(r).NotTo(BeNil())
 			})
 		})
 
-		Context("when both WithSigningToken and InsecureSkipVerification are given", func() {
+		Context("when both WithSigningSecret and InsecureSkipVerification are given", func() {
 			It("returns an error", func() {
-				_, err := ir.New(ir.InsecureSkipVerification(), ir.WithSigningToken("THE_TOKEN"))
-				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+				_, err := ir.New(ir.InsecureSkipVerification(), ir.WithSigningSecret("THE_TOKEN"))
+				Expect(err).To(MatchError(MatchRegexp("WithSigningSecret")))
 			})
 		})
 	})
@@ -266,7 +266,7 @@ var _ = Describe("InteractionRouter", func() {
 		)
 		BeforeEach(func() {
 			var err error
-			r, err = ir.New(ir.WithSigningToken(token), ir.VerboseResponse())
+			r, err = ir.New(ir.WithSigningSecret(token), ir.VerboseResponse())
 			Expect(err).NotTo(HaveOccurred())
 		})
 
