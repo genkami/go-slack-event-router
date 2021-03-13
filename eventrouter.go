@@ -109,7 +109,7 @@ func New(options ...Option) (*Router, error) {
 	r.httpHandler = http.HandlerFunc(r.serveHTTP)
 	if !r.skipVerification {
 		r.httpHandler = &signature.Middleware{
-			Secret:          r.signingSecret,
+			SigningSecret:   r.signingSecret,
 			VerboseResponse: r.verboseResponse,
 			Handler:         r.httpHandler,
 		}

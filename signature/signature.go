@@ -19,7 +19,7 @@ type Middleware struct {
 	// Secret is a signing secret.
 	//
 	// You can find this value by following this instruction: https://api.slack.com/authentication/verifying-requests-from-slack#signing_secrets_admin_page
-	Secret string
+	SigningSecret string
 
 	// If set to true, the middleware puts error details to the response body when it fails verification.
 	VerboseResponse bool
@@ -29,7 +29,7 @@ type Middleware struct {
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	verifier, err := slack.NewSecretsVerifier(r.Header, m.Secret)
+	verifier, err := slack.NewSecretsVerifier(r.Header, m.SigningSecret)
 	if err != nil {
 		if errors.Is(err, slack.ErrExpiredTimestamp) {
 			w.WriteHeader(http.StatusUnauthorized)
