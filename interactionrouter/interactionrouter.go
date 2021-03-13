@@ -2,9 +2,9 @@ package interactionrouter
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
+	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
@@ -182,7 +182,18 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	callback := slack.InteractionCallback{}
-	if err := json.Unmarshal([]byte(req.FormValue("payload")), &callback); err != nil {
+	if req.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+		router.respondWithError(w,
+			errors.WithMessage(routererrors.HttpError(http.StatusBadRequest), "unexpected Content-Type"))
+		return
+	}
+	payload := req.FormValue("payload")
+	if payload == "" {
+		router.respondWithError(w,
+			errors.WithMessage(routererrors.HttpError(http.StatusBadRequest), "missing payload"))
+		return
+	}
+	if err := json.Unmarshal([]byte(payload), &callback); err != nil {
 		router.respondWithError(w, err)
 		return
 	}
