@@ -160,4 +160,43 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 	})
+
+	Describe("CallbackID", func() {
+		var (
+			numHandlerCalled int
+			innerHandler     = ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				numHandlerCalled++
+				return nil
+			})
+		)
+		BeforeEach(func() {
+			numHandlerCalled = 0
+		})
+
+		Context("when the callback_id in the interaction callback matches to the predicate's", func() {
+			It("calls the inner handler", func() {
+				h := ir.CallbackID("CALLBACK_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type:       slack.InteractionTypeBlockActions,
+					CallbackID: "CALLBACK_ID",
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when the callback_id in the interaction callback differs from the predicate's", func() {
+			It("does not call the inner handler", func() {
+				h := ir.CallbackID("CALLBACK_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type:       slack.InteractionTypeBlockActions,
+					CallbackID: "ANOTHER_CALLBACK_ID",
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).To(Equal(routererrors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+	})
 })
