@@ -1,12 +1,20 @@
 package interactionrouter_test
 
 import (
+	"bytes"
+	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack"
 
 	routererrors "github.com/genkami/go-slack-event-router/errors"
 	ir "github.com/genkami/go-slack-event-router/interactionrouter"
+	"github.com/genkami/go-slack-event-router/signature"
 )
 
 var _ = Describe("InteractionRouter", func() {
@@ -231,4 +239,153 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 	})
+
+	Describe("WithSigningSecret", func() {
+		var (
+			r       *ir.Router
+			token   = "THE_TOKEN"
+			content = `
+			{
+				"type": "shortcut",
+				"token": "XXXXXXXXXXXXX",
+				"action_ts": "1581106241.371594",
+				"team": {
+				  "id": "TXXXXXXXX",
+				  "domain": "shortcuts-test"
+				},
+				"user": {
+				  "id": "UXXXXXXXXX",
+				  "username": "aman",
+				  "team_id": "TXXXXXXXX"
+				},
+				"callback_id": "shortcut_create_task",
+				"trigger_id": "944799105734.773906753841.38b5894552bdd4a780554ee59d1f3638"
+			}`
+		)
+		BeforeEach(func() {
+			var err error
+			r, err = ir.New(ir.WithSigningToken(token), ir.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when the signature is valid", func() {
+			It("responds with 200", func() {
+				req, err := NewSignedRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the signature is invalid", func() {
+			It("responds with Unauthorized", func() {
+				req, err := NewSignedRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			})
+		})
+
+		Context("when the timestamp is too old", func() {
+			It("responds with Unauthorized", func() {
+				ts := time.Now().Add(-1 * time.Hour)
+				req, err := NewSignedRequest(token, content, &ts)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			})
+		})
+	})
+
+	Describe("InsecureSkipVerification", func() {
+		var (
+			r       *ir.Router
+			token   = "THE_TOKEN"
+			content = `
+			{
+				"type": "shortcut",
+				"token": "XXXXXXXXXXXXX",
+				"action_ts": "1581106241.371594",
+				"team": {
+				  "id": "TXXXXXXXX",
+				  "domain": "shortcuts-test"
+				},
+				"user": {
+				  "id": "UXXXXXXXXX",
+				  "username": "aman",
+				  "team_id": "TXXXXXXXX"
+				},
+				"callback_id": "shortcut_create_task",
+				"trigger_id": "944799105734.773906753841.38b5894552bdd4a780554ee59d1f3638"
+			}`
+		)
+		BeforeEach(func() {
+			var err error
+			r, err = ir.New(ir.InsecureSkipVerification(), ir.VerboseResponse())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when the signature is valid", func() {
+			It("responds with 200", func() {
+				req, err := NewSignedRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the signature is invalid", func() {
+			It("responds with 200", func() {
+				req, err := NewSignedRequest(token, content, nil)
+				Expect(err).NotTo(HaveOccurred())
+				req.Header.Set(signature.HeaderSignature, "v0="+hex.EncodeToString([]byte("INVALID_SIGNATURE")))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("when the timestamp is too old", func() {
+			It("responds with 200", func() {
+				ts := time.Now().Add(-1 * time.Hour)
+				req, err := NewSignedRequest(token, content, &ts)
+				Expect(err).NotTo(HaveOccurred())
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				resp := w.Result()
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+	})
 })
+
+func NewSignedRequest(signingSecret string, payload string, ts *time.Time) (*http.Request, error) {
+	var now time.Time
+	if ts == nil {
+		now = time.Now()
+	} else {
+		now = *ts
+	}
+	form := url.Values{}
+	form.Set("payload", payload)
+	body := form.Encode()
+	req, err := http.NewRequest(http.MethodPost, "http://example.com/path/to/callback", bytes.NewReader([]byte(body)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := signature.AddSignature(req.Header, []byte(signingSecret), []byte(body), now); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
