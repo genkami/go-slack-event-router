@@ -198,6 +198,8 @@ func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.
 //
 // If more than one handlers are registered, the last one will be used.
 //
+// If no handler is set explicitly, the Rotuer uses the default handler.
+//
 // For more details see https://api.slack.com/events/url_verification.
 func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
 	r.urlVerificationHandler = h
@@ -206,6 +208,8 @@ func (r *Router) SetURLVerificationHandler(h urlverification.Handler) {
 // SetAppRateLimitedHandler sets a handler to process `app_rate_limited` events.
 //
 // If more than one handlers are registered, the last one will be used.
+//
+// If no handler is set explicitly, the Rotuer uses the default handler that simply ignores events of this type.
 //
 // For more details see https://api.slack.com/docs/rate-limits#rate-limits__events-api.
 func (r *Router) SetAppRateLimitedHandler(h appratelimited.Handler) {
