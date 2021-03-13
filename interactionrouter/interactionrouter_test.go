@@ -46,4 +46,118 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 	})
+
+	Describe("BlockAction", func() {
+		var (
+			numHandlerCalled int
+			innerHandler     = ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				numHandlerCalled++
+				return nil
+			})
+		)
+		BeforeEach(func() {
+			numHandlerCalled = 0
+		})
+
+		Context("when the interaction callback has the block_action specified by the predicate", func() {
+			It("calls the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{
+							{BlockID: "BLOCK_ID", ActionID: "ACTION_ID"},
+						},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when one of the block_acsions that the interaction callback has is the one specified by the predicate", func() {
+			It("calls the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{
+							{BlockID: "ANOTHER_BLOCK_ID", ActionID: "ANOTHER_ACTION_ID"},
+							{BlockID: "BLOCK_ID", ActionID: "ACTION_ID"},
+						},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when the interaction callback does not have any block_action", func() {
+			It("does not call the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).To(Equal(routererrors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+
+		Context("when the block_action in the interaction callback is not what the predicate expects", func() {
+			It("does not call the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{
+							{BlockID: "ANOTHER_BLOCK_ID", ActionID: "ANOTHER_ACTION_ID"},
+						},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).To(Equal(routererrors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+
+		Context("when the block_id in the block_action is the same as the predicate expected but the action_id isn't", func() {
+			It("does not call the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{
+							{BlockID: "BLOCK_ID", ActionID: "ANOTHER_ACTION_ID"},
+						},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).To(Equal(routererrors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+
+		Context("when the action_id in the block_action is the same as the predicate expected but the block_id isn't", func() {
+			It("does not call the inner handler", func() {
+				h := ir.BlockAction("BLOCK_ID", "ACTION_ID").Wrap(innerHandler)
+				callback := &slack.InteractionCallback{
+					Type: slack.InteractionTypeBlockActions,
+					ActionCallback: slack.ActionCallbacks{
+						BlockActions: []*slack.BlockAction{
+							{BlockID: "ANOTHER_BLOCK_ID", ActionID: "ACTION_ID"},
+						},
+					},
+				}
+				err := h.HandleInteraction(callback)
+				Expect(err).To(Equal(routererrors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+	})
 })
