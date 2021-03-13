@@ -199,4 +199,36 @@ var _ = Describe("InteractionRouter", func() {
 			})
 		})
 	})
+
+	Describe("New", func() {
+		Context("when neither WithSigningToken nor InsecureSkipVerification is given", func() {
+			It("returns an error", func() {
+				_, err := ir.New()
+				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+			})
+		})
+
+		Context("when InsecureSkipVerification is given", func() {
+			It("returns a new Router", func() {
+				r, err := ir.New(ir.InsecureSkipVerification())
+				Expect(err).NotTo(HaveOccurred())
+				Expect(r).NotTo(BeNil())
+			})
+		})
+
+		Context("when WithSigningToken is given", func() {
+			It("returns a new Router", func() {
+				r, err := ir.New(ir.WithSigningToken("THE_TOKEN"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(r).NotTo(BeNil())
+			})
+		})
+
+		Context("when both WithSigningToken and InsecureSkipVerification are given", func() {
+			It("returns an error", func() {
+				_, err := ir.New(ir.InsecureSkipVerification(), ir.WithSigningToken("THE_TOKEN"))
+				Expect(err).To(MatchError(MatchRegexp("WithSigningToken")))
+			})
+		})
+	})
 })
