@@ -134,6 +134,33 @@ func (p *messageTextRegexpPredicate) WrapRemoved(h RemovedHandler) RemovedHandle
 	})
 }
 
+type itemUserPredicate struct {
+	id string
+}
+
+// ItemUser is a predicate that is considered to be "true" if and only if the author of the reacted item is the given one.
+func ItemUser(id string) Predicate {
+	return &itemUserPredicate{id: id}
+}
+
+func (p *itemUserPredicate) WrapAdded(h AddedHandler) AddedHandler {
+	return AddedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
+		if e.ItemUser != p.id {
+			return errors.NotInterested
+		}
+		return h.HandleReactionAddedEvent(ctx, e)
+	})
+}
+
+func (p *itemUserPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
+	return RemovedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionRemovedEvent) error {
+		if e.ItemUser != p.id {
+			return errors.NotInterested
+		}
+		return h.HandleReactionRemovedEvent(ctx, e)
+	})
+}
+
 // BuildAdded decorates `AddedHandler` `h` with the given Predicates and returns a new Handler that calls the original handler `h` if and only if all the given Predicates are considered to be "true".
 func BuildAdded(h AddedHandler, preds ...Predicate) AddedHandler {
 	for _, p := range preds {

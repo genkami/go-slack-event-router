@@ -397,4 +397,62 @@ var _ = Describe("Reaction", func() {
 			})
 		})
 	})
+
+	Describe("ItemUser", func() {
+		Describe("WrapAdded", func() {
+			Context("When the author of the reacted item is the given one", func() {
+				It("calls the inner handler", func() {
+					h := reaction.ItemUser("XXX").WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						ItemUser: "XXX",
+					}
+					err := h.HandleReactionAddedEvent(ctx, e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the author of the reacted message is different from the given one", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.ItemUser("XXX").WrapAdded(innerAddedHandler)
+					e := &slackevents.ReactionAddedEvent{
+						Reaction: "smile",
+						ItemUser: "YYY",
+					}
+					err := h.HandleReactionAddedEvent(ctx, e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("WrapRemoved", func() {
+			Context("When the author of the reacted message is the given one", func() {
+				It("calls the inner handler", func() {
+					h := reaction.ItemUser("XXX").WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						ItemUser: "XXX",
+					}
+					err := h.HandleReactionRemovedEvent(ctx, e)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(numHandlerCalled).To(Equal(1))
+				})
+			})
+
+			Context("When the author of the reacted message is different from the given one", func() {
+				It("does not call the inner handler", func() {
+					h := reaction.ItemUser("XXX").WrapRemoved(innerRemovedHandler)
+					e := &slackevents.ReactionRemovedEvent{
+						Reaction: "smile",
+						ItemUser: "YYY",
+					}
+					err := h.HandleReactionRemovedEvent(ctx, e)
+					Expect(err).To(Equal(errors.NotInterested))
+					Expect(numHandlerCalled).To(Equal(0))
+				})
+			})
+		})
+	})
 })
