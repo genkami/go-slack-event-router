@@ -154,4 +154,30 @@ var _ = Describe("Message", func() {
 			})
 		})
 	})
+
+	Describe("SubType", func() {
+		Context("when the subtype of themessage equals to the given one", func() {
+			It("calls the inner handler", func() {
+				h := message.SubType("channel_join").Wrap(innerHandler)
+				e := &slackevents.MessageEvent{
+					SubType: "channel_join",
+				}
+				err := h.HandleMessageEvent(ctx, e)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when the subtype of the message differs from the given one", func() {
+			It("does not call the inner handler", func() {
+				h := message.SubType("channel_join").Wrap(innerHandler)
+				e := &slackevents.MessageEvent{
+					SubType: "pinned_channel",
+				}
+				err := h.HandleMessageEvent(ctx, e)
+				Expect(err).To(Equal(errors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+	})
 })

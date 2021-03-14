@@ -65,6 +65,26 @@ func (p *channelPredicate) Wrap(h Handler) Handler {
 	})
 }
 
+type subTypePredicate struct {
+	subType string
+}
+
+// SubType is a predicate that is considered to be "true" is and only if a subtype of a message is the given one.
+//
+// The full list of all subtypes is described here: https://api.slack.com/events/message
+func SubType(subType string) Predicate {
+	return &subTypePredicate{subType: subType}
+}
+
+func (p *subTypePredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(ctx context.Context, e *slackevents.MessageEvent) error {
+		if e.SubType != p.subType {
+			return errors.NotInterested
+		}
+		return h.HandleMessageEvent(ctx, e)
+	})
+}
+
 // Build decorates `h` with the given Predicates and returns a new Handler that calls the original handler `h` if and only if all the given Predicates are considered to be "true".
 func Build(h Handler, preds ...Predicate) Handler {
 	for _, p := range preds {
