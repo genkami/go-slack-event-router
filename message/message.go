@@ -47,6 +47,24 @@ func (p *textRegexpPredicate) Wrap(h Handler) Handler {
 	})
 }
 
+type channelPredicate struct {
+	id string
+}
+
+// Channel is a predicate that is considered to be "true" if and only if a message is posted to the given channel.
+func Channel(id string) Predicate {
+	return &channelPredicate{id: id}
+}
+
+func (p *channelPredicate) Wrap(h Handler) Handler {
+	return HandlerFunc(func(ctx context.Context, e *slackevents.MessageEvent) error {
+		if e.Channel != p.id {
+			return errors.NotInterested
+		}
+		return h.HandleMessageEvent(ctx, e)
+	})
+}
+
 // Build decorates `h` with the given Predicates and returns a new Handler that calls the original handler `h` if and only if all the given Predicates are considered to be "true".
 func Build(h Handler, preds ...Predicate) Handler {
 	for _, p := range preds {

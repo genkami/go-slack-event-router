@@ -126,4 +126,32 @@ var _ = Describe("Message", func() {
 			})
 		})
 	})
+
+	Describe("Channel", func() {
+		Context("when the message is posted to the given channel", func() {
+			It("calls the inner handler", func() {
+				h := message.Channel("THECHANNEL").Wrap(innerHandler)
+				e := &slackevents.MessageEvent{
+					Text:    "hello",
+					Channel: "THECHANNEL",
+				}
+				err := h.HandleMessageEvent(ctx, e)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(numHandlerCalled).To(Equal(1))
+			})
+		})
+
+		Context("when the message is posted to a channel other than a given one", func() {
+			It("does not call the inner handler", func() {
+				h := message.Channel("THECHANNEL").Wrap(innerHandler)
+				e := &slackevents.MessageEvent{
+					Text:    "hello",
+					Channel: "ANOTHERCHANNEL",
+				}
+				err := h.HandleMessageEvent(ctx, e)
+				Expect(err).To(Equal(errors.NotInterested))
+				Expect(numHandlerCalled).To(Equal(0))
+			})
+		})
+	})
 })
