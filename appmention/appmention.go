@@ -4,6 +4,7 @@
 package appmention
 
 import (
+	"context"
 	"regexp"
 
 	"github.com/slack-go/slack/slackevents"
@@ -13,13 +14,13 @@ import (
 
 // Handler processes `app_mention` events.
 type Handler interface {
-	HandleAppMentionEvent(*slackevents.AppMentionEvent) error
+	HandleAppMentionEvent(context.Context, *slackevents.AppMentionEvent) error
 }
 
-type HandlerFunc func(*slackevents.AppMentionEvent) error
+type HandlerFunc func(context.Context, *slackevents.AppMentionEvent) error
 
-func (f HandlerFunc) HandleAppMentionEvent(e *slackevents.AppMentionEvent) error {
-	return f(e)
+func (f HandlerFunc) HandleAppMentionEvent(ctx context.Context, e *slackevents.AppMentionEvent) error {
+	return f(ctx, e)
 }
 
 // Predicate disthinguishes whether or not a certain handler should process coming events.
@@ -37,11 +38,11 @@ func InChannel(channel string) Predicate {
 }
 
 func (p *inChannelPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(e *slackevents.AppMentionEvent) error {
+	return HandlerFunc(func(ctx context.Context, e *slackevents.AppMentionEvent) error {
 		if e.Channel != p.channel {
 			return errors.NotInterested
 		}
-		return h.HandleAppMentionEvent(e)
+		return h.HandleAppMentionEvent(ctx, e)
 	})
 }
 
@@ -55,12 +56,12 @@ func TextRegexp(re *regexp.Regexp) Predicate {
 }
 
 func (p *textRegexpPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(e *slackevents.AppMentionEvent) error {
+	return HandlerFunc(func(ctx context.Context, e *slackevents.AppMentionEvent) error {
 		idx := p.re.FindStringIndex(e.Text)
 		if len(idx) == 0 {
 			return errors.NotInterested
 		}
-		return h.HandleAppMentionEvent(e)
+		return h.HandleAppMentionEvent(ctx, e)
 	})
 }
 

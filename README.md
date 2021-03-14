@@ -11,6 +11,7 @@ To handle Events API:
 
 ```go
 import (
+	"context"
 	"net/http"
 	"os"
 	"regexp"
@@ -32,7 +33,18 @@ func ExampleRouter() {
 	r.OnReactionAdded(reaction.AddedHandlerFunc(handleIssue), reaction.Name("issue"), reaction.InChannel("ABCXYZ"))
 
 	http.Handle("/slack/events", r)
+
 	// ...
+}
+
+func handleDeploy(ctx context.Context, e *slackevents.MessageEvent) error {
+	// Do whatever you want...
+	return nil
+}
+
+func handleIssue(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
+	// Do whatever you want...
+	return nil
 }
 ```
 
@@ -40,6 +52,7 @@ To handle user interaction:
 
 ```go
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -58,6 +71,11 @@ func ExampleRouter() {
 	http.Handle("/slack/actions", r)
 
 	// ...
+}
+
+func handlePostNiceGif(ctx context.Context, callback *slack.InteractionCallback) error {
+	// Do whatever you want...
+	return nil
 }
 ```
 

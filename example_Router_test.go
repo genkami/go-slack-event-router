@@ -1,6 +1,7 @@
 package eventrouter_test
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"regexp"
@@ -22,15 +23,16 @@ func ExampleRouter() {
 	r.OnReactionAdded(reaction.AddedHandlerFunc(handleIssue), reaction.Name("issue"), reaction.InChannel("ABCXYZ"))
 
 	http.Handle("/slack/events", r)
+
 	// ...
 }
 
-func handleDeploy(e *slackevents.MessageEvent) error {
+func handleDeploy(ctx context.Context, e *slackevents.MessageEvent) error {
 	// Do whatever you want...
 	return nil
 }
 
-func handleIssue(e *slackevents.ReactionAddedEvent) error {
+func handleIssue(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
 	// Do whatever you want...
 	return nil
 }

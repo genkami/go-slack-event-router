@@ -4,6 +4,7 @@
 package interactionrouter
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -17,13 +18,13 @@ import (
 
 // Handler processes interaction callbacks sent from Slack.
 type Handler interface {
-	HandleInteraction(*slack.InteractionCallback) error
+	HandleInteraction(context.Context, *slack.InteractionCallback) error
 }
 
-type HandlerFunc func(*slack.InteractionCallback) error
+type HandlerFunc func(context.Context, *slack.InteractionCallback) error
 
-func (f HandlerFunc) HandleInteraction(c *slack.InteractionCallback) error {
-	return f(c)
+func (f HandlerFunc) HandleInteraction(ctx context.Context, callback *slack.InteractionCallback) error {
+	return f(ctx, callback)
 }
 
 // Predicate disthinguishes whether or not a certain handler should process coming events.
@@ -41,11 +42,11 @@ func Type(typeName slack.InteractionType) Predicate {
 }
 
 func (p *typePredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+	return HandlerFunc(func(ctx context.Context, callback *slack.InteractionCallback) error {
 		if callback.Type != p.typeName {
 			return routererrors.NotInterested
 		}
-		return h.HandleInteraction(callback)
+		return h.HandleInteraction(ctx, callback)
 	})
 }
 
@@ -60,11 +61,11 @@ func BlockAction(blockID, actionID string) Predicate {
 }
 
 func (p *blockActionPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+	return HandlerFunc(func(ctx context.Context, callback *slack.InteractionCallback) error {
 		if FindBlockAction(callback, p.blockID, p.actionID) == nil {
 			return routererrors.NotInterested
 		}
-		return h.HandleInteraction(callback)
+		return h.HandleInteraction(ctx, callback)
 	})
 }
 
@@ -78,11 +79,11 @@ func CallbackID(id string) Predicate {
 }
 
 func (p *callbackIDPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+	return HandlerFunc(func(ctx context.Context, callback *slack.InteractionCallback) error {
 		if callback.CallbackID != p.id {
 			return routererrors.NotInterested
 		}
-		return h.HandleInteraction(callback)
+		return h.HandleInteraction(ctx, callback)
 	})
 }
 
@@ -96,11 +97,11 @@ func Channel(id string) Predicate {
 }
 
 func (p *channelPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(callback *slack.InteractionCallback) error {
+	return HandlerFunc(func(ctx context.Context, callback *slack.InteractionCallback) error {
 		if callback.Channel.ID != p.id {
 			return routererrors.NotInterested
 		}
-		return h.HandleInteraction(callback)
+		return h.HandleInteraction(ctx, callback)
 	})
 }
 
@@ -238,15 +239,15 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	router.handleInteractionCallback(w, &callback)
+	router.handleInteractionCallback(req.Context(), w, &callback)
 }
 
-func (r *Router) handleInteractionCallback(w http.ResponseWriter, callback *slack.InteractionCallback) {
+func (r *Router) handleInteractionCallback(ctx context.Context, w http.ResponseWriter, callback *slack.InteractionCallback) {
 	var err error = routererrors.NotInterested
 	handlers, ok := r.handlers[callback.Type]
 	if ok {
 		for _, h := range handlers {
-			err = h.HandleInteraction(callback)
+			err = h.HandleInteraction(ctx, callback)
 			if !errors.Is(err, routererrors.NotInterested) {
 				break
 			}
@@ -254,7 +255,7 @@ func (r *Router) handleInteractionCallback(w http.ResponseWriter, callback *slac
 	}
 
 	if errors.Is(err, routererrors.NotInterested) {
-		err = r.handleFallback(callback)
+		err = r.handleFallback(ctx, callback)
 	}
 
 	if err != nil && !errors.Is(err, routererrors.NotInterested) {
@@ -264,11 +265,11 @@ func (r *Router) handleInteractionCallback(w http.ResponseWriter, callback *slac
 	w.WriteHeader(http.StatusOK)
 }
 
-func (r *Router) handleFallback(callback *slack.InteractionCallback) error {
+func (r *Router) handleFallback(ctx context.Context, callback *slack.InteractionCallback) error {
 	if r.fallbackHandler == nil {
 		return routererrors.NotInterested
 	}
-	return r.fallbackHandler.HandleInteraction(callback)
+	return r.fallbackHandler.HandleInteraction(ctx, callback)
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {

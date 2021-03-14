@@ -1,6 +1,7 @@
 package reaction_test
 
 import (
+	"context"
 	"regexp"
 
 	. "github.com/onsi/ginkgo"
@@ -14,17 +15,19 @@ import (
 var _ = Describe("Reaction", func() {
 	var (
 		numHandlerCalled  int
-		innerAddedHandler = reaction.AddedHandlerFunc(func(_ *slackevents.ReactionAddedEvent) error {
+		innerAddedHandler = reaction.AddedHandlerFunc(func(_ context.Context, _ *slackevents.ReactionAddedEvent) error {
 			numHandlerCalled++
 			return nil
 		})
-		innerRemovedHandler = reaction.RemovedHandlerFunc(func(ev *slackevents.ReactionRemovedEvent) error {
+		innerRemovedHandler = reaction.RemovedHandlerFunc(func(_ context.Context, _ *slackevents.ReactionRemovedEvent) error {
 			numHandlerCalled++
 			return nil
 		})
+		ctx context.Context
 	)
 	BeforeEach(func() {
 		numHandlerCalled = 0
+		ctx = context.Background()
 	})
 
 	Describe("BuildAdded", func() {
@@ -32,7 +35,7 @@ var _ = Describe("Reaction", func() {
 			It("returns the original handler", func() {
 				h := reaction.BuildAdded(innerAddedHandler)
 				e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-				err := h.HandleReactionAddedEvent(e)
+				err := h.HandleReactionAddedEvent(ctx, e)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -43,7 +46,7 @@ var _ = Describe("Reaction", func() {
 				It("calls the inner handler", func() {
 					h := reaction.BuildAdded(innerAddedHandler, reaction.Name("smile"))
 					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -53,7 +56,7 @@ var _ = Describe("Reaction", func() {
 				It("does not call the inner handler", func() {
 					h := reaction.BuildAdded(innerAddedHandler, reaction.Name("sob"))
 					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -68,7 +71,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("cry"),
 					)
 					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -81,7 +84,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("sob"),
 					)
 					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -94,7 +97,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("smile"),
 					)
 					e := &slackevents.ReactionAddedEvent{Reaction: "smile"}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -107,7 +110,7 @@ var _ = Describe("Reaction", func() {
 			It("returns the original handler", func() {
 				h := reaction.BuildRemoved(innerRemovedHandler)
 				e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-				err := h.HandleReactionRemovedEvent(e)
+				err := h.HandleReactionRemovedEvent(ctx, e)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -118,7 +121,7 @@ var _ = Describe("Reaction", func() {
 				It("calls the inner handler", func() {
 					h := reaction.BuildRemoved(innerRemovedHandler, reaction.Name("smile"))
 					e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -128,7 +131,7 @@ var _ = Describe("Reaction", func() {
 				It("does not call the inner handler", func() {
 					h := reaction.BuildRemoved(innerRemovedHandler, reaction.Name("sob"))
 					e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -143,7 +146,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("cry"),
 					)
 					e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -156,7 +159,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("sob"),
 					)
 					e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -169,7 +172,7 @@ var _ = Describe("Reaction", func() {
 						reaction.Name("smile"),
 					)
 					e := &slackevents.ReactionRemovedEvent{Reaction: "smile"}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -185,7 +188,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionAddedEvent{
 						Reaction: "smile",
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -197,7 +200,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionAddedEvent{
 						Reaction: "sob",
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -211,7 +214,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionRemovedEvent{
 						Reaction: "smile",
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -223,7 +226,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionRemovedEvent{
 						Reaction: "sob",
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -242,7 +245,7 @@ var _ = Describe("Reaction", func() {
 							Channel: "XXX",
 						},
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -257,7 +260,7 @@ var _ = Describe("Reaction", func() {
 							Channel: "YYY",
 						},
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -274,7 +277,7 @@ var _ = Describe("Reaction", func() {
 							Channel: "XXX",
 						},
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -289,7 +292,7 @@ var _ = Describe("Reaction", func() {
 							Channel: "YYY",
 						},
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -310,7 +313,7 @@ var _ = Describe("Reaction", func() {
 							},
 						},
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -327,7 +330,7 @@ var _ = Describe("Reaction", func() {
 							},
 						},
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -339,7 +342,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionAddedEvent{
 						Reaction: "smile",
 					}
-					err := h.HandleReactionAddedEvent(e)
+					err := h.HandleReactionAddedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -358,7 +361,7 @@ var _ = Describe("Reaction", func() {
 							},
 						},
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -375,7 +378,7 @@ var _ = Describe("Reaction", func() {
 							},
 						},
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -387,7 +390,7 @@ var _ = Describe("Reaction", func() {
 					e := &slackevents.ReactionRemovedEvent{
 						Reaction: "smile",
 					}
-					err := h.HandleReactionRemovedEvent(e)
+					err := h.HandleReactionRemovedEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})

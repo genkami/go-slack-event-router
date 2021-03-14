@@ -2,6 +2,7 @@
 package eventrouter
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -29,13 +30,13 @@ import (
 //
 // If any other errors are returned, the Router responds with Internal Server Error.
 type Handler interface {
-	HandleEventsAPIEvent(*slackevents.EventsAPIEvent) error
+	HandleEventsAPIEvent(context.Context, *slackevents.EventsAPIEvent) error
 }
 
-type HandlerFunc func(*slackevents.EventsAPIEvent) error
+type HandlerFunc func(context.Context, *slackevents.EventsAPIEvent) error
 
-func (f HandlerFunc) HandleEventsAPIEvent(e *slackevents.EventsAPIEvent) error {
-	return f(e)
+func (f HandlerFunc) HandleEventsAPIEvent(ctx context.Context, e *slackevents.EventsAPIEvent) error {
+	return f(ctx, e)
 }
 
 // Option configures the Router.
@@ -146,12 +147,12 @@ func (r *Router) On(eventType string, h Handler) {
 // The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
 	h = message.Build(h, preds...)
-	r.On(slackevents.Message, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+	r.On(slackevents.Message, HandlerFunc(func(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.MessageEvent)
 		if !ok {
 			return routererrors.HttpError(http.StatusBadRequest)
 		}
-		return h.HandleMessageEvent(inner)
+		return h.HandleMessageEvent(ctx, inner)
 	}))
 }
 
@@ -163,12 +164,12 @@ func (r *Router) OnMessage(h message.Handler, preds ...message.Predicate) {
 // The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicate) {
 	h = appmention.Build(h, preds...)
-	r.On(slackevents.AppMention, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+	r.On(slackevents.AppMention, HandlerFunc(func(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.AppMentionEvent)
 		if !ok {
 			return routererrors.HttpError(http.StatusBadRequest)
 		}
-		return h.HandleAppMentionEvent(inner)
+		return h.HandleAppMentionEvent(ctx, inner)
 	}))
 }
 
@@ -180,12 +181,12 @@ func (r *Router) OnAppMention(h appmention.Handler, preds ...appmention.Predicat
 // The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Predicate) {
 	h = reaction.BuildAdded(h, preds...)
-	r.On(slackevents.ReactionAdded, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+	r.On(slackevents.ReactionAdded, HandlerFunc(func(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionAddedEvent)
 		if !ok {
 			return routererrors.HttpError(http.StatusBadRequest)
 		}
-		return h.HandleReactionAddedEvent(inner)
+		return h.HandleReactionAddedEvent(ctx, inner)
 	}))
 }
 
@@ -197,12 +198,12 @@ func (r *Router) OnReactionAdded(h reaction.AddedHandler, preds ...reaction.Pred
 // The handler `h` will be called only when all of given Predicates are true.
 func (r *Router) OnReactionRemoved(h reaction.RemovedHandler, preds ...reaction.Predicate) {
 	h = reaction.BuildRemoved(h, preds...)
-	r.On(slackevents.ReactionRemoved, HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+	r.On(slackevents.ReactionRemoved, HandlerFunc(func(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 		inner, ok := e.InnerEvent.Data.(*slackevents.ReactionRemovedEvent)
 		if !ok {
 			return routererrors.HttpError(http.StatusBadRequest)
 		}
-		return h.HandleReactionRemovedEvent(inner)
+		return h.HandleReactionRemovedEvent(ctx, inner)
 	}))
 }
 
@@ -254,11 +255,12 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	ctx := req.Context()
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
-		router.handleURLVerification(w, &eventsAPIEvent)
+		router.handleURLVerification(ctx, w, &eventsAPIEvent)
 	case slackevents.CallbackEvent:
-		router.handleCallbackEvent(w, &eventsAPIEvent)
+		router.handleCallbackEvent(ctx, w, &eventsAPIEvent)
 	case slackevents.AppRateLimited:
 		// Surprisingly, ParseEvent can't deal with EventsAPIAppRateLimitedEvent correctly.
 		// So we should re-parse the entire body for now.
@@ -269,7 +271,7 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 				w,
 				errors.WithMessage(err, "failed to parse app_rate_limited event"))
 		}
-		router.handleAppRateLimited(w, &appRateLimited)
+		router.handleAppRateLimited(ctx, w, &appRateLimited)
 	default:
 		router.respondWithError(
 			w,
@@ -278,13 +280,13 @@ func (router *Router) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
+func (r *Router) handleURLVerification(ctx context.Context, w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	ev, ok := e.Data.(*slackevents.EventsAPIURLVerificationEvent)
 	if !ok {
 		r.respondWithError(w, fmt.Errorf("expected EventsAPIURLVerificationEvent but got %T", e.Data))
 		return
 	}
-	resp, err := r.urlVerificationHandler.HandleURLVerification(ev)
+	resp, err := r.urlVerificationHandler.HandleURLVerification(ctx, ev)
 	if err != nil {
 		r.respondWithError(w, err)
 		return
@@ -294,12 +296,12 @@ func (r *Router) handleURLVerification(w http.ResponseWriter, e *slackevents.Eve
 	_ = enc.Encode(resp)
 }
 
-func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
+func (r *Router) handleCallbackEvent(ctx context.Context, w http.ResponseWriter, e *slackevents.EventsAPIEvent) {
 	var err error = routererrors.NotInterested
 	handlers, ok := r.callbackHandlers[e.InnerEvent.Type]
 	if ok {
 		for _, h := range handlers {
-			err = h.HandleEventsAPIEvent(e)
+			err = h.HandleEventsAPIEvent(ctx, e)
 			if !errors.Is(err, routererrors.NotInterested) {
 				break
 			}
@@ -307,7 +309,7 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 	}
 
 	if errors.Is(err, routererrors.NotInterested) {
-		err = r.handleFallback(e)
+		err = r.handleFallback(ctx, e)
 	}
 
 	if err != nil && !errors.Is(err, routererrors.NotInterested) {
@@ -317,8 +319,8 @@ func (r *Router) handleCallbackEvent(w http.ResponseWriter, e *slackevents.Event
 	w.WriteHeader(http.StatusOK)
 }
 
-func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.EventsAPIAppRateLimited) {
-	err := r.appRateLimitedHandler.HandleAppRateLimited(e)
+func (r *Router) handleAppRateLimited(ctx context.Context, w http.ResponseWriter, e *slackevents.EventsAPIAppRateLimited) {
+	err := r.appRateLimitedHandler.HandleAppRateLimited(ctx, e)
 	if err != nil {
 		r.respondWithError(w, err)
 		return
@@ -326,11 +328,11 @@ func (r *Router) handleAppRateLimited(w http.ResponseWriter, e *slackevents.Even
 	_, _ = w.Write([]byte("OK"))
 }
 
-func (r *Router) handleFallback(e *slackevents.EventsAPIEvent) error {
+func (r *Router) handleFallback(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 	if r.fallbackHandler == nil {
 		return routererrors.NotInterested
 	}
-	return r.fallbackHandler.HandleEventsAPIEvent(e)
+	return r.fallbackHandler.HandleEventsAPIEvent(ctx, e)
 }
 
 func (r *Router) respondWithError(w http.ResponseWriter, err error) {

@@ -1,6 +1,7 @@
 package message_test
 
 import (
+	"context"
 	"regexp"
 
 	. "github.com/onsi/ginkgo"
@@ -14,13 +15,15 @@ import (
 var _ = Describe("Message", func() {
 	var (
 		numHandlerCalled int
-		innerHandler     = message.HandlerFunc(func(ev *slackevents.MessageEvent) error {
+		innerHandler     = message.HandlerFunc(func(_ context.Context, _ *slackevents.MessageEvent) error {
 			numHandlerCalled++
 			return nil
 		})
+		ctx context.Context
 	)
 	BeforeEach(func() {
 		numHandlerCalled = 0
+		ctx = context.Background()
 	})
 
 	Describe("Build", func() {
@@ -28,7 +31,7 @@ var _ = Describe("Message", func() {
 			It("returns the original handler", func() {
 				h := message.Build(innerHandler)
 				e := &slackevents.MessageEvent{Text: "hello world"}
-				err := h.HandleMessageEvent(e)
+				err := h.HandleMessageEvent(ctx, e)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -39,7 +42,7 @@ var _ = Describe("Message", func() {
 				It("calls the inner handler", func() {
 					h := message.Build(innerHandler, message.TextRegexp(regexp.MustCompile(`hello`)))
 					e := &slackevents.MessageEvent{Text: "hello world"}
-					err := h.HandleMessageEvent(e)
+					err := h.HandleMessageEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -49,7 +52,7 @@ var _ = Describe("Message", func() {
 				It("does not call the inner handler", func() {
 					h := message.Build(innerHandler, message.TextRegexp(regexp.MustCompile(`BYE`)))
 					e := &slackevents.MessageEvent{Text: "hello world"}
-					err := h.HandleMessageEvent(e)
+					err := h.HandleMessageEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -64,7 +67,7 @@ var _ = Describe("Message", func() {
 						message.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
 					)
 					e := &slackevents.MessageEvent{Text: "hello world"}
-					err := h.HandleMessageEvent(e)
+					err := h.HandleMessageEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -77,7 +80,7 @@ var _ = Describe("Message", func() {
 						message.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
 					)
 					e := &slackevents.MessageEvent{Text: "hello world"}
-					err := h.HandleMessageEvent(e)
+					err := h.HandleMessageEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -90,7 +93,7 @@ var _ = Describe("Message", func() {
 						message.TextRegexp(regexp.MustCompile(`world`)),
 					)
 					e := &slackevents.MessageEvent{Text: "hello world"}
-					err := h.HandleMessageEvent(e)
+					err := h.HandleMessageEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -105,7 +108,7 @@ var _ = Describe("Message", func() {
 				e := &slackevents.MessageEvent{
 					Text: "I ate an apple",
 				}
-				err := h.HandleMessageEvent(e)
+				err := h.HandleMessageEvent(ctx, e)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -117,7 +120,7 @@ var _ = Describe("Message", func() {
 				e := &slackevents.MessageEvent{
 					Text: "I ate a banana",
 				}
-				err := h.HandleMessageEvent(e)
+				err := h.HandleMessageEvent(ctx, e)
 				Expect(err).To(Equal(errors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})

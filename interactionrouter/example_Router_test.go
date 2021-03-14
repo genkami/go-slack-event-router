@@ -1,6 +1,7 @@
 package interactionrouter_test
 
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -21,7 +22,7 @@ func ExampleRouter() {
 	// ...
 }
 
-func handlePostNiceGif(callback *slack.InteractionCallback) error {
+func handlePostNiceGif(ctx context.Context, callback *slack.InteractionCallback) error {
 	// Do whatever you want...
 	return nil
 }

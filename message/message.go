@@ -4,6 +4,7 @@
 package message
 
 import (
+	"context"
 	"regexp"
 
 	"github.com/slack-go/slack/slackevents"
@@ -13,13 +14,13 @@ import (
 
 // Handler processes `message` events.
 type Handler interface {
-	HandleMessageEvent(*slackevents.MessageEvent) error
+	HandleMessageEvent(context.Context, *slackevents.MessageEvent) error
 }
 
-type HandlerFunc func(*slackevents.MessageEvent) error
+type HandlerFunc func(context.Context, *slackevents.MessageEvent) error
 
-func (f HandlerFunc) HandleMessageEvent(e *slackevents.MessageEvent) error {
-	return f(e)
+func (f HandlerFunc) HandleMessageEvent(ctx context.Context, e *slackevents.MessageEvent) error {
+	return f(ctx, e)
 }
 
 // Predicate disthinguishes whether or not a certain handler should process coming events.
@@ -37,12 +38,12 @@ func TextRegexp(re *regexp.Regexp) Predicate {
 }
 
 func (p *textRegexpPredicate) Wrap(h Handler) Handler {
-	return HandlerFunc(func(e *slackevents.MessageEvent) error {
+	return HandlerFunc(func(ctx context.Context, e *slackevents.MessageEvent) error {
 		idx := p.re.FindStringIndex(e.Text)
 		if len(idx) == 0 {
 			return errors.NotInterested
 		}
-		return h.HandleMessageEvent(e)
+		return h.HandleMessageEvent(ctx, e)
 	})
 }
 

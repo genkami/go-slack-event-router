@@ -1,6 +1,7 @@
 package appmention_test
 
 import (
+	"context"
 	"regexp"
 
 	. "github.com/onsi/ginkgo"
@@ -14,13 +15,15 @@ import (
 var _ = Describe("AppMention", func() {
 	var (
 		numHandlerCalled int
-		innerHandler     = appmention.HandlerFunc(func(ev *slackevents.AppMentionEvent) error {
+		innerHandler     = appmention.HandlerFunc(func(ctx context.Context, ev *slackevents.AppMentionEvent) error {
 			numHandlerCalled++
 			return nil
 		})
+		ctx context.Context
 	)
 	BeforeEach(func() {
 		numHandlerCalled = 0
+		ctx = context.Background()
 	})
 
 	Describe("Build", func() {
@@ -28,7 +31,7 @@ var _ = Describe("AppMention", func() {
 			It("returns the original handler", func() {
 				h := appmention.Build(innerHandler)
 				e := &slackevents.AppMentionEvent{Text: "hello world"}
-				err := h.HandleAppMentionEvent(e)
+				err := h.HandleAppMentionEvent(ctx, e)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -39,7 +42,7 @@ var _ = Describe("AppMention", func() {
 				It("calls the inner handler", func() {
 					h := appmention.Build(innerHandler, appmention.TextRegexp(regexp.MustCompile(`hello`)))
 					e := &slackevents.AppMentionEvent{Text: "hello world"}
-					err := h.HandleAppMentionEvent(e)
+					err := h.HandleAppMentionEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -49,7 +52,7 @@ var _ = Describe("AppMention", func() {
 				It("does not call the inner handler", func() {
 					h := appmention.Build(innerHandler, appmention.TextRegexp(regexp.MustCompile(`BYE`)))
 					e := &slackevents.AppMentionEvent{Text: "hello world"}
-					err := h.HandleAppMentionEvent(e)
+					err := h.HandleAppMentionEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -64,7 +67,7 @@ var _ = Describe("AppMention", func() {
 						appmention.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
 					)
 					e := &slackevents.AppMentionEvent{Text: "hello world"}
-					err := h.HandleAppMentionEvent(e)
+					err := h.HandleAppMentionEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -77,7 +80,7 @@ var _ = Describe("AppMention", func() {
 						appmention.TextRegexp(regexp.MustCompile(`GOOD NIGHT`)),
 					)
 					e := &slackevents.AppMentionEvent{Text: "hello world"}
-					err := h.HandleAppMentionEvent(e)
+					err := h.HandleAppMentionEvent(ctx, e)
 					Expect(err).To(Equal(errors.NotInterested))
 					Expect(numHandlerCalled).To(Equal(0))
 				})
@@ -90,7 +93,7 @@ var _ = Describe("AppMention", func() {
 						appmention.TextRegexp(regexp.MustCompile(`world`)),
 					)
 					e := &slackevents.AppMentionEvent{Text: "hello world"}
-					err := h.HandleAppMentionEvent(e)
+					err := h.HandleAppMentionEvent(ctx, e)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(numHandlerCalled).To(Equal(1))
 				})
@@ -105,7 +108,7 @@ var _ = Describe("AppMention", func() {
 				e := &slackevents.AppMentionEvent{
 					Channel: "XXX",
 				}
-				err := h.HandleAppMentionEvent(e)
+				err := h.HandleAppMentionEvent(ctx, e)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -117,7 +120,7 @@ var _ = Describe("AppMention", func() {
 				e := &slackevents.AppMentionEvent{
 					Channel: "YYY",
 				}
-				err := h.HandleAppMentionEvent(e)
+				err := h.HandleAppMentionEvent(ctx, e)
 				Expect(err).To(Equal(errors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -131,7 +134,7 @@ var _ = Describe("AppMention", func() {
 				e := &slackevents.AppMentionEvent{
 					Text: "I ate an apple",
 				}
-				err := h.HandleAppMentionEvent(e)
+				err := h.HandleAppMentionEvent(ctx, e)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -143,7 +146,7 @@ var _ = Describe("AppMention", func() {
 				e := &slackevents.AppMentionEvent{
 					Text: "I ate a banana",
 				}
-				err := h.HandleAppMentionEvent(e)
+				err := h.HandleAppMentionEvent(ctx, e)
 				Expect(err).To(Equal(errors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})

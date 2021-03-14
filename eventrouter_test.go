@@ -2,6 +2,7 @@ package eventrouter_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -238,7 +239,7 @@ var _ = Describe("EventRouter", func() {
 				"event_time": 1234567890
 			}`
 			numHandlerCalled = 0
-			handler          = eventrouter.HandlerFunc(func(e *slackevents.EventsAPIEvent) error {
+			handler          = eventrouter.HandlerFunc(func(ctx context.Context, e *slackevents.EventsAPIEvent) error {
 				numHandlerCalled++
 				return nil
 			})
@@ -290,7 +291,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when a handler returned an error", func() {
 			It("responds with InternalServerError", func() {
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					return fmt.Errorf("something wrong happened")
 				}))
 				req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(content)))
@@ -304,7 +305,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when a handler returned NotInterested", func() {
 			It("responds with 200", func() {
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					return routererrors.NotInterested
 				}))
 				req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(content)))
@@ -318,7 +319,7 @@ var _ = Describe("EventRouter", func() {
 
 		Context("when a handler returned an error that equals to NotInterested using errors.Is", func() {
 			It("responds with 200", func() {
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					return errors.WithMessage(routererrors.NotInterested, "not interested")
 				}))
 				req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(content)))
@@ -333,7 +334,7 @@ var _ = Describe("EventRouter", func() {
 		Context("when a handler returned an HttpError", func() {
 			It("responds with a corresponding status code", func() {
 				code := http.StatusUnauthorized
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					return routererrors.HttpError(code)
 				}))
 				req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(content)))
@@ -348,7 +349,7 @@ var _ = Describe("EventRouter", func() {
 		Context("when a handler returned an error that equals to HttpError using errors.As", func() {
 			It("responds with a corresponding status code", func() {
 				code := http.StatusUnauthorized
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					return errors.WithMessage(routererrors.HttpError(code), "you ain't authorized")
 				}))
 				req, err := http.NewRequest(http.MethodPost, "http:/example.com/path", bytes.NewReader([]byte(content)))
@@ -373,15 +374,15 @@ var _ = Describe("EventRouter", func() {
 				numFirstHandlerCalled = 0
 				numSecondHandlerCalled = 0
 				numFallbackCalled = 0
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numFirstHandlerCalled++
 					return firstError
 				}))
-				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.On(slackevents.Message, eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numSecondHandlerCalled++
 					return secondError
 				}))
-				r.SetFallback(eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.SetFallback(eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numFallbackCalled++
 					return fallbackError
 				}))
@@ -493,7 +494,7 @@ var _ = Describe("EventRouter", func() {
 		Context("when no handler except for fallback is registered", func() {
 			It("calls fallback handler", func() {
 				numCalled := 0
-				r.SetFallback(eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.SetFallback(eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numCalled++
 					return nil
 				}))
@@ -510,12 +511,12 @@ var _ = Describe("EventRouter", func() {
 		Context("when more than one fallback handlers are registered", func() {
 			It("uses the last one", func() {
 				numFirstHandlerCalled := 0
-				r.SetFallback(eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.SetFallback(eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numFirstHandlerCalled++
 					return nil
 				}))
 				numLastHandlerCalled := 0
-				r.SetFallback(eventrouter.HandlerFunc(func(_ *slackevents.EventsAPIEvent) error {
+				r.SetFallback(eventrouter.HandlerFunc(func(_ context.Context, _ *slackevents.EventsAPIEvent) error {
 					numLastHandlerCalled++
 					return nil
 				}))

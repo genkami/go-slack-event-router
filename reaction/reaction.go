@@ -6,6 +6,7 @@
 package reaction
 
 import (
+	"context"
 	"regexp"
 
 	"github.com/genkami/go-slack-event-router/errors"
@@ -14,24 +15,24 @@ import (
 
 // AddedHandler processes `reaction_added` events.
 type AddedHandler interface {
-	HandleReactionAddedEvent(*slackevents.ReactionAddedEvent) error
+	HandleReactionAddedEvent(context.Context, *slackevents.ReactionAddedEvent) error
 }
 
-type AddedHandlerFunc func(*slackevents.ReactionAddedEvent) error
+type AddedHandlerFunc func(context.Context, *slackevents.ReactionAddedEvent) error
 
-func (f AddedHandlerFunc) HandleReactionAddedEvent(e *slackevents.ReactionAddedEvent) error {
-	return f(e)
+func (f AddedHandlerFunc) HandleReactionAddedEvent(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
+	return f(ctx, e)
 }
 
 // RemovedHandler processes `reaction_removed` events.
 type RemovedHandler interface {
-	HandleReactionRemovedEvent(*slackevents.ReactionRemovedEvent) error
+	HandleReactionRemovedEvent(context.Context, *slackevents.ReactionRemovedEvent) error
 }
 
-type RemovedHandlerFunc func(*slackevents.ReactionRemovedEvent) error
+type RemovedHandlerFunc func(context.Context, *slackevents.ReactionRemovedEvent) error
 
-func (f RemovedHandlerFunc) HandleReactionRemovedEvent(e *slackevents.ReactionRemovedEvent) error {
-	return f(e)
+func (f RemovedHandlerFunc) HandleReactionRemovedEvent(ctx context.Context, e *slackevents.ReactionRemovedEvent) error {
+	return f(ctx, e)
 }
 
 // Predicate disthinguishes whether or not a certain handler should process coming events.
@@ -51,20 +52,20 @@ func Name(reaction string) Predicate {
 }
 
 func (p *namePredicate) WrapAdded(h AddedHandler) AddedHandler {
-	return AddedHandlerFunc(func(e *slackevents.ReactionAddedEvent) error {
+	return AddedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
 		if p.reaction != e.Reaction {
 			return errors.NotInterested
 		}
-		return h.HandleReactionAddedEvent(e)
+		return h.HandleReactionAddedEvent(ctx, e)
 	})
 }
 
 func (p *namePredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
-	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
+	return RemovedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionRemovedEvent) error {
 		if p.reaction != e.Reaction {
 			return errors.NotInterested
 		}
-		return h.HandleReactionRemovedEvent(e)
+		return h.HandleReactionRemovedEvent(ctx, e)
 	})
 }
 
@@ -78,20 +79,20 @@ func InChannel(channel string) Predicate {
 }
 
 func (p *inChannelPredicate) WrapAdded(h AddedHandler) AddedHandler {
-	return AddedHandlerFunc(func(e *slackevents.ReactionAddedEvent) error {
+	return AddedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
 		if p.channel != e.Item.Channel {
 			return errors.NotInterested
 		}
-		return h.HandleReactionAddedEvent(e)
+		return h.HandleReactionAddedEvent(ctx, e)
 	})
 }
 
 func (p *inChannelPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
-	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
+	return RemovedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionRemovedEvent) error {
 		if p.channel != e.Item.Channel {
 			return errors.NotInterested
 		}
-		return h.HandleReactionRemovedEvent(e)
+		return h.HandleReactionRemovedEvent(ctx, e)
 	})
 }
 
@@ -116,20 +117,20 @@ func (p *messageTextRegexpPredicate) match(item *slackevents.Item) error {
 }
 
 func (p *messageTextRegexpPredicate) WrapAdded(h AddedHandler) AddedHandler {
-	return AddedHandlerFunc(func(e *slackevents.ReactionAddedEvent) error {
+	return AddedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionAddedEvent) error {
 		if err := p.match(&e.Item); err != nil {
 			return err
 		}
-		return h.HandleReactionAddedEvent(e)
+		return h.HandleReactionAddedEvent(ctx, e)
 	})
 }
 
 func (p *messageTextRegexpPredicate) WrapRemoved(h RemovedHandler) RemovedHandler {
-	return RemovedHandlerFunc(func(e *slackevents.ReactionRemovedEvent) error {
+	return RemovedHandlerFunc(func(ctx context.Context, e *slackevents.ReactionRemovedEvent) error {
 		if err := p.match(&e.Item); err != nil {
 			return err
 		}
-		return h.HandleReactionRemovedEvent(e)
+		return h.HandleReactionRemovedEvent(ctx, e)
 	})
 }
 

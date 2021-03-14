@@ -2,6 +2,7 @@ package interactionrouter_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -23,13 +24,15 @@ var _ = Describe("InteractionRouter", func() {
 	Describe("Type", func() {
 		var (
 			numHandlerCalled int
-			innerHandler     = ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+			innerHandler     = ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 				numHandlerCalled++
 				return nil
 			})
+			ctx context.Context
 		)
 		BeforeEach(func() {
 			numHandlerCalled = 0
+			ctx = context.Background()
 		})
 
 		Context("when the type of the interaction callback matches to the predicate's", func() {
@@ -38,7 +41,7 @@ var _ = Describe("InteractionRouter", func() {
 				callback := &slack.InteractionCallback{
 					Type: slack.InteractionTypeBlockActions,
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -50,7 +53,7 @@ var _ = Describe("InteractionRouter", func() {
 				callback := &slack.InteractionCallback{
 					Type: slack.InteractionTypeViewSubmission,
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -60,13 +63,15 @@ var _ = Describe("InteractionRouter", func() {
 	Describe("BlockAction", func() {
 		var (
 			numHandlerCalled int
-			innerHandler     = ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+			innerHandler     = ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 				numHandlerCalled++
 				return nil
 			})
+			ctx context.Context
 		)
 		BeforeEach(func() {
 			numHandlerCalled = 0
+			ctx = context.Background()
 		})
 
 		Context("when the interaction callback has the block_action specified by the predicate", func() {
@@ -80,7 +85,7 @@ var _ = Describe("InteractionRouter", func() {
 						},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -98,7 +103,7 @@ var _ = Describe("InteractionRouter", func() {
 						},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -113,7 +118,7 @@ var _ = Describe("InteractionRouter", func() {
 						BlockActions: []*slack.BlockAction{},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -130,7 +135,7 @@ var _ = Describe("InteractionRouter", func() {
 						},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -147,7 +152,7 @@ var _ = Describe("InteractionRouter", func() {
 						},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -164,7 +169,7 @@ var _ = Describe("InteractionRouter", func() {
 						},
 					},
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -174,13 +179,15 @@ var _ = Describe("InteractionRouter", func() {
 	Describe("CallbackID", func() {
 		var (
 			numHandlerCalled int
-			innerHandler     = ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+			innerHandler     = ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 				numHandlerCalled++
 				return nil
 			})
+			ctx context.Context
 		)
 		BeforeEach(func() {
 			numHandlerCalled = 0
+			ctx = context.Background()
 		})
 
 		Context("when the callback_id in the interaction callback matches to the predicate's", func() {
@@ -190,7 +197,7 @@ var _ = Describe("InteractionRouter", func() {
 					Type:       slack.InteractionTypeBlockActions,
 					CallbackID: "CALLBACK_ID",
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(numHandlerCalled).To(Equal(1))
 			})
@@ -203,7 +210,7 @@ var _ = Describe("InteractionRouter", func() {
 					Type:       slack.InteractionTypeBlockActions,
 					CallbackID: "ANOTHER_CALLBACK_ID",
 				}
-				err := h.HandleInteraction(callback)
+				err := h.HandleInteraction(ctx, callback)
 				Expect(err).To(Equal(routererrors.NotInterested))
 				Expect(numHandlerCalled).To(Equal(0))
 			})
@@ -391,7 +398,7 @@ var _ = Describe("InteractionRouter", func() {
 				"trigger_id": "944799105734.773906753841.38b5894552bdd4a780554ee59d1f3638"
 			}`
 			numHandlerCalled = 0
-			handler          = ir.HandlerFunc(func(e *slack.InteractionCallback) error {
+			handler          = ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 				numHandlerCalled++
 				return nil
 			})
@@ -443,7 +450,7 @@ var _ = Describe("InteractionRouter", func() {
 
 		Context("when a handler returned an error", func() {
 			It("responds with InternalServerError", func() {
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					return fmt.Errorf("something wrong happened")
 				}))
 				req, err := NewRequest(content)
@@ -457,7 +464,7 @@ var _ = Describe("InteractionRouter", func() {
 
 		Context("when a handler returned NotInterested", func() {
 			It("responds with 200", func() {
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					return routererrors.NotInterested
 				}))
 				req, err := NewRequest(content)
@@ -471,7 +478,7 @@ var _ = Describe("InteractionRouter", func() {
 
 		Context("when a handler returned an error that equals to NotInterested using errors.Is", func() {
 			It("responds with 200", func() {
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					return errors.WithMessage(routererrors.NotInterested, "not interested")
 				}))
 				req, err := NewRequest(content)
@@ -486,7 +493,7 @@ var _ = Describe("InteractionRouter", func() {
 		Context("when a handler returned an HttpError", func() {
 			It("responds with a corresponding status code", func() {
 				code := http.StatusUnauthorized
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					return routererrors.HttpError(code)
 				}))
 				req, err := NewRequest(content)
@@ -501,7 +508,7 @@ var _ = Describe("InteractionRouter", func() {
 		Context("when a handler returned an error that equals to HttpError using errors.As", func() {
 			It("responds with a corresponding status code", func() {
 				code := http.StatusUnauthorized
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					return errors.WithMessage(routererrors.HttpError(code), "you ain't authorized")
 				}))
 				req, err := NewRequest(content)
@@ -526,15 +533,15 @@ var _ = Describe("InteractionRouter", func() {
 				numFirstHandlerCalled = 0
 				numSecondHandlerCalled = 0
 				numFallbackCalled = 0
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numFirstHandlerCalled++
 					return firstError
 				}))
-				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.On(slack.InteractionTypeShortcut, ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numSecondHandlerCalled++
 					return secondError
 				}))
-				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.SetFallback(ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numFallbackCalled++
 					return fallbackError
 				}))
@@ -646,7 +653,7 @@ var _ = Describe("InteractionRouter", func() {
 		Context("when no handler except for fallback is registered", func() {
 			It("calls fallback handler", func() {
 				numCalled := 0
-				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.SetFallback(ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numCalled++
 					return nil
 				}))
@@ -663,12 +670,12 @@ var _ = Describe("InteractionRouter", func() {
 		Context("when more than one fallback handlers are registered", func() {
 			It("uses the last one", func() {
 				numFirstHandlerCalled := 0
-				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.SetFallback(ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numFirstHandlerCalled++
 					return nil
 				}))
 				numLastHandlerCalled := 0
-				r.SetFallback(ir.HandlerFunc(func(_ *slack.InteractionCallback) error {
+				r.SetFallback(ir.HandlerFunc(func(_ context.Context, _ *slack.InteractionCallback) error {
 					numLastHandlerCalled++
 					return nil
 				}))
