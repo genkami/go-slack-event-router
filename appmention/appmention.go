@@ -32,8 +32,8 @@ type inChannelPredicate struct {
 	channel string
 }
 
-// InChannel is a predicate that is considered to be "true" if and only if an event happened in the given channel.
-func InChannel(channel string) Predicate {
+// Channel is a predicate that is considered to be "true" if and only if an event happened in the given channel.
+func Channel(channel string) Predicate {
 	return &inChannelPredicate{channel: channel}
 }
 

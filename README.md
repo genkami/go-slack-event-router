@@ -30,7 +30,7 @@ func ExampleRouter() {
 	r.OnMessage(message.HandlerFunc(handleDeploy), message.TextRegexp(regexp.MustCompile(`deploy`)))
 
 	// Call handleIssue whenever the router receives `reaction_added` events with reaction `:issue:` and the event happens in the channel ABCXYZ.
-	r.OnReactionAdded(reaction.AddedHandlerFunc(handleIssue), reaction.Name("issue"), reaction.InChannel("ABCXYZ"))
+	r.OnReactionAdded(reaction.AddedHandlerFunc(handleIssue), reaction.Name("issue"), reaction.Channel("ABCXYZ"))
 
 	http.Handle("/slack/events", r)
 

@@ -234,11 +234,11 @@ var _ = Describe("Reaction", func() {
 		})
 	})
 
-	Describe("InChannel", func() {
+	Describe("Channel", func() {
 		Describe("WrapAdded", func() {
 			Context("When the reaction's channel is the same as the predicate's", func() {
 				It("calls the inner handler", func() {
-					h := reaction.InChannel("XXX").WrapAdded(innerAddedHandler)
+					h := reaction.Channel("XXX").WrapAdded(innerAddedHandler)
 					e := &slackevents.ReactionAddedEvent{
 						Reaction: "smile",
 						Item: slackevents.Item{
@@ -253,7 +253,7 @@ var _ = Describe("Reaction", func() {
 
 			Context("When the reaction's channel is different from thepredicate's", func() {
 				It("does not call the inner handler", func() {
-					h := reaction.InChannel("XXX").WrapAdded(innerAddedHandler)
+					h := reaction.Channel("XXX").WrapAdded(innerAddedHandler)
 					e := &slackevents.ReactionAddedEvent{
 						Reaction: "smile",
 						Item: slackevents.Item{
@@ -270,7 +270,7 @@ var _ = Describe("Reaction", func() {
 		Describe("WrapRemoved", func() {
 			Context("When the reaction's channel is the same as the predicate's", func() {
 				It("calls the inner handler", func() {
-					h := reaction.InChannel("XXX").WrapRemoved(innerRemovedHandler)
+					h := reaction.Channel("XXX").WrapRemoved(innerRemovedHandler)
 					e := &slackevents.ReactionRemovedEvent{
 						Reaction: "smile",
 						Item: slackevents.Item{
@@ -285,7 +285,7 @@ var _ = Describe("Reaction", func() {
 
 			Context("When the reaction's channel is different from thepredicate's", func() {
 				It("does not call the inner handler", func() {
-					h := reaction.InChannel("XXX").WrapRemoved(innerRemovedHandler)
+					h := reaction.Channel("XXX").WrapRemoved(innerRemovedHandler)
 					e := &slackevents.ReactionRemovedEvent{
 						Reaction: "smile",
 						Item: slackevents.Item{

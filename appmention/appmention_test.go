@@ -101,10 +101,10 @@ var _ = Describe("AppMention", func() {
 		})
 	})
 
-	Describe("InChannel", func() {
+	Describe("Channel", func() {
 		Context("When the event's channels is the same as the predicate's", func() {
 			It("calls the inner handler", func() {
-				h := appmention.InChannel("XXX").Wrap(innerHandler)
+				h := appmention.Channel("XXX").Wrap(innerHandler)
 				e := &slackevents.AppMentionEvent{
 					Channel: "XXX",
 				}
@@ -116,7 +116,7 @@ var _ = Describe("AppMention", func() {
 
 		Context("When the event's channels is different from the predicate's", func() {
 			It("does not call the inner handler", func() {
-				h := appmention.InChannel("XXX").Wrap(innerHandler)
+				h := appmention.Channel("XXX").Wrap(innerHandler)
 				e := &slackevents.AppMentionEvent{
 					Channel: "YYY",
 				}
