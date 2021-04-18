@@ -6,5 +6,5 @@ require (
 	github.com/onsi/ginkgo v1.15.2
 	github.com/onsi/gomega v1.11.0
 	github.com/pkg/errors v0.9.1
-	github.com/slack-go/slack v0.8.2
+	github.com/slack-go/slack v0.8.3
 )
