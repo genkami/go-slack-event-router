@@ -1,6 +1,6 @@
 module github.com/genkami/go-slack-event-router
 
-go 1.16
+go 1.19
 
 require (
 	github.com/onsi/ginkgo v1.16.5
